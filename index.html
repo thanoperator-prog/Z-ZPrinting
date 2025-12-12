@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Z&Z Printing Manager</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Configure Tailwind -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 850: '#1e293b', 950: '#020617' }
+                    },
+                    screens: {
+                        'xs': '480px'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        
+        /* Animations */
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .slide-up { animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .slide-in-right { animation: slideInRight 0.3s ease-out; }
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        /* Mobile Optimizations */
+        body { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-300">
+
+    <div id="app" class="flex h-screen overflow-hidden">
+        <!-- App Content Injected Here -->
+    </div>
+
+    <!-- Toast & Modal Containers -->
+    <div id="toast-container" class="fixed top-6 right-6 z-[60] flex flex-col gap-2 pointer-events-none"></div>
+    <div id="modal-container"></div>
+
+<script>
+    /**
+     * Z&Z Printing App - Responsive & PWA Ready
+     */
+
+    // --- SERVICE WORKER REGISTRATION (For PWA) ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('SW registered:', reg))
+                .catch(err => console.log('SW failed:', err));
+        });
+    }
+
+    // --- STATE MANAGEMENT ---
+    const DB_VERSION = 'v5';
+    
+    const state = {
+        activeTab: 'dashboard',
+        isMobileMenuOpen: false,
+        materials: JSON.parse(localStorage.getItem(`zz_materials_${DB_VERSION}`)) || [],
+        products: JSON.parse(localStorage.getItem(`zz_products_${DB_VERSION}`)) || [],
+        sales: JSON.parse(localStorage.getItem(`zz_sales_${DB_VERSION}`)) || [],
+        darkMode: localStorage.getItem('zz_darkMode') === 'true',
+        themeColor: localStorage.getItem('zz_themeColor') || 'cyan',
+        
+        // Dashboard
+        dashboardViewMode: 'all',
+        dashboardDateRange: { start: '', end: '' },
+
+        // POS
+        cart: [],
+        posSearch: '',
+        posCategory: 'All',
+        isMobileCartOpen: false, // New for Mobile POS
+
+        // Inventory
+        isInvAdding: false,
+        editingId: null,
+        newItem: { name: '', category: 'Xerox', cost: '', price: '', stock: '', recipe: [] },
+
+        // Materials
+        isMatAdding: false,
+        newMaterial: { name: '', unit: 'Sheet', stock: '', costPerUnit: '' },
+
+        // History
+        historyDateFilter: ''
+    };
+
+    // --- PERSISTENCE & UTILS ---
+    function saveState() {
+        localStorage.setItem(`zz_materials_${DB_VERSION}`, JSON.stringify(state.materials));
+        localStorage.setItem(`zz_products_${DB_VERSION}`, JSON.stringify(state.products));
+        localStorage.setItem(`zz_sales_${DB_VERSION}`, JSON.stringify(state.sales));
+        localStorage.setItem('zz_darkMode', state.darkMode);
+        localStorage.setItem('zz_themeColor', state.themeColor);
+        
+        if (state.darkMode) document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+
+        renderApp();
+    }
+
+    function formatPHP(amount) {
+        return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
+    }
+
+    function formatDate(dateString) {
+        return new Date(dateString).toLocaleString('en-PH', {
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+    }
+
+    function getPHDateString(dateInput) {
+        const date = dateInput ? new Date(dateInput) : new Date();
+        return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+    }
+
+    function showToast(msg) {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = "bg-slate-800 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-xl shadow-xl flex items-center gap-3 slide-up pointer-events-auto border border-slate-700 dark:border-slate-200";
+        toast.innerHTML = `<i data-lucide="check-circle-2" width="20"></i> <span class="font-bold text-sm">${msg}</span>`;
+        container.appendChild(toast);
+        lucide.createIcons();
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // --- ACTIONS ---
+    window.setTab = (tab) => {
+        state.activeTab = tab;
+        state.isMobileMenuOpen = false;
+        state.isMobileCartOpen = false;
+        renderApp();
+    };
+
+    window.toggleMobileMenu = () => {
+        state.isMobileMenuOpen = !state.isMobileMenuOpen;
+        renderApp();
+    };
+
+    window.toggleDarkMode = () => {
+        state.darkMode = !state.darkMode;
+        saveState();
+    };
+
+    window.setThemeColor = (color) => {
+        state.themeColor = color;
+        saveState();
+    };
+
+    // --- Material Actions ---
+    window.toggleAddMaterial = () => { state.isMatAdding = !state.isMatAdding; renderApp(); };
+    window.saveMaterial = (e) => {
+        e.preventDefault();
+        const form = e.target;
+        state.materials.push({
+            id: Date.now(),
+            name: form.name.value,
+            unit: form.unit.value,
+            stock: parseInt(form.stock.value),
+            costPerUnit: parseFloat(form.costPerUnit.value || 0)
+        });
+        state.isMatAdding = false;
+        saveState();
+        showToast("Material Added");
+    };
+    window.deleteMaterial = (id) => openConfirmModal('Delete?', 'Cannot be undone.', () => {
+        state.materials = state.materials.filter(m => m.id !== id);
+        saveState();
+    });
+
+    // --- Product Actions ---
+    window.toggleAddProduct = () => {
+        state.isInvAdding = !state.isInvAdding;
+        state.editingId = null;
+        state.newItem = { name: '', category: 'Xerox', cost: '', price: '', stock: '', recipe: [] };
+        renderApp();
+    };
+    window.editProduct = (id) => {
+        const p = state.products.find(p => p.id === id);
+        if(p) {
+            state.newItem = JSON.parse(JSON.stringify(p));
+            if(!state.newItem.recipe) state.newItem.recipe = [];
+            state.editingId = id;
+            state.isInvAdding = true;
+            renderApp();
+        }
+    };
+    window.addRecipeIngredient = () => {
+        const matId = parseInt(document.getElementById('recipe-mat-select').value);
+        const qty = parseFloat(document.getElementById('recipe-qty-input').value);
+        const mat = state.materials.find(m => m.id === matId);
+        if (mat && qty) {
+            state.newItem.recipe.push({ materialId: matId, name: mat.name, qty: qty });
+            renderApp();
+        }
+    };
+    window.removeRecipeIngredient = (idx) => {
+        state.newItem.recipe.splice(idx, 1);
+        renderApp();
+    };
+    window.saveProduct = (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const data = {
+            ...state.newItem,
+            name: form.name.value,
+            category: form.category.value,
+            cost: parseFloat(form.cost.value),
+            price: parseFloat(form.price.value),
+            stock: parseInt(form.stock.value) || 0
+        };
+        if (state.editingId) {
+            data.id = state.editingId;
+            state.products = state.products.map(p => p.id === state.editingId ? data : p);
+        } else {
+            data.id = Date.now();
+            state.products.push(data);
+        }
+        state.isInvAdding = false;
+        state.editingId = null;
+        saveState();
+        showToast("Product Saved");
+    };
+    window.deleteProduct = (id) => openConfirmModal('Delete Service?', 'Sure?', () => {
+        state.products = state.products.filter(p => p.id !== id);
+        saveState();
+    });
+
+    // --- POS Actions ---
+    window.addToCart = (id) => {
+        const p = state.products.find(p => p.id === id);
+        if(!p) return;
+
+        // Stock check
+        let max = 9999;
+        if(p.recipe?.length) {
+            p.recipe.forEach(i => {
+                const m = state.materials.find(mat => mat.id === i.materialId);
+                max = Math.min(max, m ? Math.floor(m.stock / i.qty) : 0);
+            });
+        }
+        
+        const existing = state.cart.find(c => c.id === id);
+        if((existing ? existing.qty : 0) < max) {
+            if(existing) existing.qty++;
+            else state.cart.push({ ...p, qty: 1 });
+            showToast(`Added ${p.name}`); // Feedback for mobile
+            renderApp();
+        } else {
+            alert("Insufficient materials!");
+        }
+    };
+    window.removeFromCart = (id) => {
+        state.cart = state.cart.filter(c => c.id !== id);
+        if(state.cart.length === 0) state.isMobileCartOpen = false;
+        renderApp();
+    };
+    window.toggleMobileCart = () => {
+        state.isMobileCartOpen = !state.isMobileCartOpen;
+        renderApp();
+    };
+    window.checkout = () => {
+        if(!state.cart.length) return;
+        const now = new Date().toISOString();
+        
+        // Create Sales
+        const sales = state.cart.map(c => ({
+            id: Math.random().toString(36).substr(2, 9),
+            productId: c.id,
+            productName: c.name,
+            quantity: c.qty,
+            total: c.price * c.qty,
+            profit: (c.price - c.cost) * c.qty,
+            recipe: c.recipe,
+            date: now
+        }));
+        state.sales = [...sales, ...state.sales];
+
+        // Deduct Inventory
+        state.cart.forEach(c => {
+            // Direct Stock
+            const pIdx = state.products.findIndex(p => p.id === c.id);
+            if(pIdx > -1) state.products[pIdx].stock = Math.max(0, state.products[pIdx].stock - c.qty);
+            
+            // Materials
+            c.recipe?.forEach(r => {
+                const mIdx = state.materials.findIndex(m => m.id === r.materialId);
+                if(mIdx > -1) state.materials[mIdx].stock = Math.max(0, state.materials[mIdx].stock - (r.qty * c.qty));
+            });
+        });
+
+        state.cart = [];
+        state.isMobileCartOpen = false;
+        saveState();
+        showToast("Sale Completed!");
+    };
+
+    // --- General Actions ---
+    window.deleteSale = (id) => openConfirmModal('Refund?', 'Restores stock.', () => {
+        const s = state.sales.find(x => x.id === id);
+        if(!s) return;
+        
+        // Restore
+        const p = state.products.find(p => p.id === s.productId);
+        if(p) p.stock += s.quantity;
+        
+        const recipe = s.recipe || (p ? p.recipe : []);
+        recipe?.forEach(r => {
+            const m = state.materials.find(mat => mat.id === r.materialId);
+            if(m) m.stock += (r.qty * s.quantity);
+        });
+
+        state.sales = state.sales.filter(x => x.id !== id);
+        saveState();
+    });
+
+    window.setDashboardView = (m) => { state.dashboardViewMode = m; renderApp(); };
+    window.setDashboardDate = (k, v) => { state.dashboardDateRange[k] = v; renderApp(); };
+
+    // Data Management
+    window.backupData = () => {
+        const blob = new Blob([JSON.stringify({ 
+            materials: state.materials, products: state.products, sales: state.sales, version: DB_VERSION 
+        }, null, 2)], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `zz-backup-${getPHDateString()}.json`;
+        link.click();
+    };
+    window.triggerRestore = () => document.getElementById('restore-input').click();
+    window.handleRestoreFile = (e) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const d = JSON.parse(ev.target.result);
+                if(d.materials && d.products) {
+                    openConfirmModal('Restore?', 'Overwrites data.', () => {
+                        state.materials = d.materials; state.products = d.products; state.sales = d.sales || [];
+                        saveState(); showToast("Restored");
+                    });
+                }
+            } catch(er) { alert("Invalid File"); }
+        };
+        if(e.target.files[0]) reader.readAsText(e.target.files[0]);
+    };
+    window.resetApp = () => openConfirmModal('Reset?', 'Wipes everything.', () => {
+        state.materials = []; state.products = []; state.sales = [];
+        saveState();
+    });
+
+    // --- MODAL ---
+    function openConfirmModal(title, msg, onConfirm) {
+        document.getElementById('modal-container').innerHTML = `
+            <div class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm fade-in">
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-700 slide-up">
+                    <h3 class="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">${title}</h3>
+                    <p class="text-slate-500 dark:text-slate-400 mb-6">${msg}</p>
+                    <div class="flex gap-3">
+                        <button onclick="document.getElementById('modal-container').innerHTML=''" class="flex-1 py-3 bg-slate-100 dark:bg-slate-700 rounded-xl font-bold dark:text-white">Cancel</button>
+                        <button id="modal-confirm-btn" class="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold shadow-lg shadow-red-500/30">Confirm</button>
+                    </div>
+                </div>
+            </div>`;
+        document.getElementById('modal-confirm-btn').onclick = () => { onConfirm(); document.getElementById('modal-container').innerHTML=''; };
+    }
+
+    // --- RENDERERS ---
+    function getThemeClasses(type) {
+        const c = state.themeColor;
+        const map = {
+            'btn-primary': `bg-${c}-600 active:bg-${c}-700 text-white shadow-lg shadow-${c}-500/30`,
+            'icon-bg': `bg-${c}-100 dark:bg-${c}-900/30 text-${c}-600 dark:text-${c}-400`,
+            'active-nav': `bg-${c}-600 text-white shadow-lg shadow-${c}-600/20`,
+            'text-accent': `text-${c}-600 dark:text-${c}-400`
+        };
+        return map[type] || '';
+    }
+
+    function renderSidebar() {
+        const items = [
+            { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
+            { id: 'pos', label: 'POS', icon: 'shopping-cart' },
+            { id: 'products', label: 'Products', icon: 'package' }, // Renamed from Inventory for brevity
+            { id: 'materials', label: 'Materials', icon: 'layers' },
+            { id: 'history', label: 'History', icon: 'history' },
+            { id: 'settings', label: 'Settings', icon: 'settings' }
+        ];
+
+        return `
+            <!-- Mobile Overlay -->
+            <div onclick="toggleMobileMenu()" class="fixed inset-0 bg-slate-900/50 z-40 md:hidden ${state.isMobileMenuOpen ? 'block' : 'hidden'} backdrop-blur-sm transition-opacity"></div>
+            
+            <!-- Sidebar -->
+            <aside class="fixed md:static inset-y-0 left-0 z-50 w-72 bg-slate-900 dark:bg-slate-950 text-white transform transition-transform duration-300 ${state.isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col shadow-2xl md:shadow-none">
+                <div class="p-6 flex items-center gap-4 border-b border-slate-800">
+                    <div class="w-10 h-10 bg-gradient-to-br from-${state.themeColor}-400 to-${state.themeColor}-600 rounded-xl flex items-center justify-center shadow-lg">
+                        <i data-lucide="printer" class="text-white" width="20"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-xl tracking-tight">Z&Z Manager</h1>
+                        <p class="text-xs text-slate-400">PWA Edition</p>
+                    </div>
+                </div>
+                <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+                    ${items.map(i => `
+                        <button onclick="setTab('${i.id === 'products' ? 'inventory' : i.id}')" class="w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all font-medium ${state.activeTab === (i.id === 'products' ? 'inventory' : i.id) ? getThemeClasses('active-nav') : 'text-slate-400 hover:bg-slate-800 hover:text-white'}">
+                            <i data-lucide="${i.icon}" width="22"></i> ${i.label}
+                        </button>
+                    `).join('')}
+                </nav>
+            </aside>
+        `;
+    }
+
+    function renderPOS() {
+        const cartTotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+        const cartCount = state.cart.reduce((sum, item) => sum + item.qty, 0);
+        
+        const filtered = state.products.filter(p => 
+            p.name.toLowerCase().includes(state.posSearch.toLowerCase()) && 
+            (state.posCategory === 'All' || p.category === state.posCategory)
+        );
+        const cats = ['All', ...new Set(state.products.map(p => p.category))];
+
+        return `
+            <div class="h-[calc(100vh-5rem)] md:h-[calc(100vh-2rem)] flex flex-col md:flex-row gap-6 relative">
+                <!-- Product Section -->
+                <div class="flex-1 flex flex-col min-h-0">
+                    <!-- Search Bar -->
+                    <div class="flex gap-3 mb-4">
+                        <div class="relative flex-1">
+                            <i data-lucide="search" class="absolute left-3 top-3.5 text-slate-400" width="20"></i>
+                            <input type="text" placeholder="Search..." oninput="state.posSearch = this.value; renderApp()" class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-${state.themeColor}-500" value="${state.posSearch}">
+                        </div>
+                        <select onchange="state.posCategory = this.value; renderApp()" class="w-1/3 md:w-auto p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-${state.themeColor}-500 bg-white">
+                            ${cats.map(c => `<option ${state.posCategory === c ? 'selected' : ''}>${c}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <!-- Grid -->
+                    <div class="flex-1 overflow-y-auto pb-24 md:pb-0 pr-1">
+                        <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
+                            ${filtered.map(p => {
+                                let available = true, max = 999;
+                                p.recipe?.forEach(r => {
+                                    const m = state.materials.find(mat => mat.id === r.materialId);
+                                    if(!m) { available=false; max=0; }
+                                    else max = Math.min(max, Math.floor(m.stock/r.qty));
+                                });
+                                const isLow = available && max < 10;
+
+                                return `
+                                <div onclick="${available ? `addToCart(${p.id})` : ''}" class="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden transition-all active:scale-95 touch-manipulation ${!available ? 'opacity-60 grayscale' : `hover:border-${state.themeColor}-500`}">
+                                    ${isLow ? '<div class="absolute top-0 right-0 bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-bl-lg font-bold">Low</div>' : ''}
+                                    <div class="flex justify-between items-start mb-2">
+                                        <span class="text-[10px] font-bold text-slate-400 uppercase bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">${p.category.substr(0,8)}</span>
+                                        <span class="font-bold text-${state.themeColor}-600 dark:text-${state.themeColor}-400">${formatPHP(p.price)}</span>
+                                    </div>
+                                    <h4 class="font-bold text-slate-800 dark:text-slate-200 text-sm leading-tight mb-1 line-clamp-2 h-10">${p.name}</h4>
+                                    ${!available ? '<p class="text-xs text-red-500 font-bold">Unavailable</p>' : ''}
+                                </div>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Desktop Cart (Sidebar) -->
+                <div class="hidden md:flex w-80 lg:w-96 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 flex-col overflow-hidden">
+                    ${renderCartContent(cartTotal, cartCount)}
+                </div>
+
+                <!-- Mobile Cart Modal -->
+                <div class="md:hidden fixed inset-0 z-50 flex flex-col justify-end pointer-events-none">
+                    <!-- Overlay -->
+                    <div onclick="toggleMobileCart()" class="absolute inset-0 bg-black/60 transition-opacity pointer-events-auto ${state.isMobileCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}"></div>
+                    
+                    <!-- Bottom Sheet -->
+                    <div class="bg-white dark:bg-slate-800 w-full rounded-t-2xl shadow-2xl transform transition-transform duration-300 pointer-events-auto flex flex-col max-h-[85vh] ${state.isMobileCartOpen ? 'translate-y-0' : 'translate-y-full'}">
+                        <div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto my-3"></div>
+                        ${renderCartContent(cartTotal, cartCount)}
+                    </div>
+                </div>
+
+                <!-- Mobile Floating Cart Button -->
+                <button onclick="toggleMobileCart()" class="md:hidden fixed bottom-6 right-6 z-40 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full shadow-2xl shadow-slate-900/50 flex items-center px-6 py-4 gap-3 transition-transform active:scale-90 ${state.isMobileCartOpen ? 'hidden' : 'flex'}">
+                    <div class="relative">
+                        <i data-lucide="shopping-cart" width="24"></i>
+                        ${cartCount > 0 ? `<span class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-slate-900 dark:border-white">${cartCount}</span>` : ''}
+                    </div>
+                    <span class="font-bold">${formatPHP(cartTotal)}</span>
+                </button>
+            </div>
+        `;
+    }
+
+    function renderCartContent(total, count) {
+        return `
+            <div class="p-4 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                <h3 class="font-bold text-lg text-slate-800 dark:text-slate-100">Current Order</h3>
+                <span class="text-xs font-bold bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded text-slate-600 dark:text-slate-300">${count} Items</span>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-3">
+                ${state.cart.length === 0 ? `
+                    <div class="h-40 flex flex-col items-center justify-center text-slate-400 opacity-50">
+                        <i data-lucide="shopping-bag" width="40" class="mb-2"></i>
+                        <p class="text-sm">Empty Cart</p>
+                    </div>
+                ` : state.cart.map(item => `
+                    <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-700/30 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <div class="flex-1">
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-slate-200 truncate">${item.name}</h4>
+                            <div class="text-xs text-slate-500 mt-0.5">${formatPHP(item.price)} x ${item.qty}</div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="font-bold text-slate-700 dark:text-slate-300">${formatPHP(item.price * item.qty)}</span>
+                            <button onclick="removeFromCart(${item.id})" class="w-8 h-8 flex items-center justify-center bg-red-100 dark:bg-red-900/30 text-red-500 rounded-full hover:bg-red-200"><i data-lucide="trash-2" width="14"></i></button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="p-6 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700">
+                <div class="flex justify-between items-end mb-4">
+                    <span class="text-slate-500 text-sm">Total Amount</span>
+                    <span class="text-3xl font-bold text-slate-900 dark:text-white">${formatPHP(total)}</span>
+                </div>
+                <button onclick="checkout()" ${state.cart.length === 0 ? 'disabled' : ''} class="w-full py-4 rounded-xl font-bold text-lg transition-all ${state.cart.length === 0 ? 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed text-slate-500' : getThemeClasses('btn-primary')}">
+                    Charge ${formatPHP(total)}
+                </button>
+            </div>
+        `;
+    }
+
+    function renderCommonTable(headers, rows) {
+        return `
+            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                        <thead class="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 font-medium text-xs uppercase tracking-wider">
+                            <tr>${headers.map(h => `<th class="px-6 py-4">${h}</th>`).join('')}</tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                            ${rows}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+    }
+
+    // --- MAIN RENDER ---
+    function renderApp() {
+        const app = document.getElementById('app');
+        
+        let content = '';
+        if (state.activeTab === 'dashboard') {
+            const todayStr = getPHDateString();
+            const relSales = state.sales.filter(s => {
+                const d = getPHDateString(s.date);
+                if (state.dashboardViewMode === 'today') return d === todayStr;
+                if (state.dashboardViewMode === 'custom' && state.dashboardDateRange.start) {
+                    return d >= state.dashboardDateRange.start && (!state.dashboardDateRange.end || d <= state.dashboardDateRange.end);
+                }
+                return true;
+            });
+            const rev = relSales.reduce((a,s)=>a+s.total,0);
+            const profit = relSales.reduce((a,s)=>a+s.profit,0);
+            
+            content = `
+                <div class="space-y-6 pb-20 fade-in">
+                    <div class="flex flex-col sm:flex-row justify-between gap-4">
+                        <h2 class="text-2xl font-bold dark:text-white">Dashboard</h2>
+                        <div class="flex bg-white dark:bg-slate-800 p-1 rounded-lg border dark:border-slate-700 shadow-sm self-start">
+                            ${['all','today','custom'].map(m => `<button onclick="setDashboardView('${m}')" class="px-4 py-1.5 rounded-md text-sm font-medium ${state.dashboardViewMode===m ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-500'}">${m.toUpperCase()}</button>`).join('')}
+                        </div>
+                    </div>
+                    ${state.dashboardViewMode === 'custom' ? `
+                        <div class="flex gap-2 bg-white dark:bg-slate-800 p-3 rounded-xl border dark:border-slate-700">
+                            <input type="date" onchange="setDashboardDate('start',this.value)" value="${state.dashboardDateRange.start}" class="bg-transparent dark:text-white outline-none border rounded p-1 text-sm">
+                            <span class="self-center">-</span>
+                            <input type="date" onchange="setDashboardDate('end',this.value)" value="${state.dashboardDateRange.end}" class="bg-transparent dark:text-white outline-none border rounded p-1 text-sm">
+                        </div>` : ''
+                    }
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg shadow-blue-500/20">
+                            <p class="text-blue-100 text-sm font-medium mb-1">Total Revenue</p>
+                            <p class="text-3xl font-bold">${formatPHP(rev)}</p>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border dark:border-slate-700 shadow-sm">
+                            <p class="text-slate-500 text-sm font-medium mb-1">Net Profit</p>
+                            <p class="text-3xl font-bold text-green-500">${formatPHP(profit)}</p>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border dark:border-slate-700 shadow-sm">
+                            <p class="text-slate-500 text-sm font-medium mb-1">Transactions</p>
+                            <p class="text-3xl font-bold dark:text-white">${relSales.length}</p>
+                        </div>
+                    </div>
+                </div>`;
+        } else if (state.activeTab === 'inventory') {
+            content = `
+                <div class="space-y-6 pb-20 fade-in">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-bold dark:text-white">Products</h2>
+                        <button onclick="toggleAddProduct()" class="px-4 py-2 rounded-lg font-bold transition-all ${getThemeClasses('btn-primary')}">${state.isInvAdding ? 'Cancel' : '+ Add'}</button>
+                    </div>
+                    ${state.isInvAdding ? `
+                        <form onsubmit="saveProduct(event)" class="bg-white dark:bg-slate-800 p-6 rounded-xl border dark:border-slate-700 space-y-4 shadow-xl slide-up">
+                            <div class="grid grid-cols-2 gap-4">
+                                <input name="name" placeholder="Product Name" required value="${state.newItem.name}" class="col-span-2 p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <input name="price" type="number" step="0.01" placeholder="Price" required value="${state.newItem.price}" class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <input name="cost" type="number" step="0.01" placeholder="Cost" required value="${state.newItem.cost}" class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <select name="category" class="col-span-2 p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                    ${['Xerox','Photo','Print','Laminate','Other'].map(c=>`<option ${state.newItem.category===c?'selected':''}>${c}</option>`).join('')}
+                                </select>
+                                <input type="hidden" name="stock" value="0">
+                            </div>
+                            <div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl">
+                                <div class="flex gap-2 mb-2">
+                                    <select id="recipe-mat-select" class="flex-1 p-2 border rounded dark:bg-slate-700 dark:text-white text-sm">${state.materials.map(m=>`<option value="${m.id}">${m.name}</option>`).join('')}</select>
+                                    <input id="recipe-qty-input" type="number" step="0.1" placeholder="Qty" class="w-20 p-2 border rounded dark:bg-slate-700 dark:text-white text-sm">
+                                    <button type="button" onclick="addRecipeIngredient()" class="bg-slate-200 dark:bg-slate-600 px-3 rounded font-bold">+</button>
+                                </div>
+                                <div class="space-y-1">
+                                    ${state.newItem.recipe.map((r,i) => `<div class="flex justify-between text-xs dark:text-slate-300"><span>${r.qty} x ${r.name}</span><span onclick="removeRecipeIngredient(${i})" class="text-red-500 cursor-pointer">x</span></div>`).join('')}
+                                </div>
+                            </div>
+                            <button class="w-full py-3 rounded-xl font-bold ${getThemeClasses('btn-primary')}">Save</button>
+                        </form>
+                    ` : ''}
+                    ${renderCommonTable(['Name', 'Price', 'Actions'], state.products.map(p => `
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                            <td class="px-6 py-4 dark:text-white font-medium">
+                                ${p.name}
+                                <div class="text-xs text-slate-400">${p.category}</div>
+                            </td>
+                            <td class="px-6 py-4 dark:text-white">${formatPHP(p.price)}</td>
+                            <td class="px-6 py-4 flex gap-2">
+                                <button onclick="editProduct(${p.id})" class="text-blue-500"><i data-lucide="edit" width="18"></i></button>
+                                <button onclick="deleteProduct(${p.id})" class="text-red-500"><i data-lucide="trash-2" width="18"></i></button>
+                            </td>
+                        </tr>`).join(''))}
+                </div>`;
+        } else if (state.activeTab === 'materials') {
+            content = `
+                <div class="space-y-6 pb-20 fade-in">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-bold dark:text-white">Materials</h2>
+                        <button onclick="toggleAddMaterial()" class="px-4 py-2 rounded-lg font-bold transition-all ${getThemeClasses('btn-primary')}">${state.isMatAdding ? 'Cancel' : '+ Add'}</button>
+                    </div>
+                    ${state.isMatAdding ? `
+                        <form onsubmit="saveMaterial(event)" class="bg-white dark:bg-slate-800 p-6 rounded-xl border dark:border-slate-700 space-y-4 shadow-xl slide-up">
+                            <input name="name" placeholder="Material Name" required class="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            <div class="grid grid-cols-2 gap-4">
+                                <input name="unit" placeholder="Unit (e.g. Sheets)" required class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <input name="stock" type="number" placeholder="Current Stock" required class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            </div>
+                            <button class="w-full py-3 rounded-xl font-bold ${getThemeClasses('btn-primary')}">Save Material</button>
+                        </form>
+                    ` : ''}
+                    ${renderCommonTable(['Name', 'Stock', 'Action'], state.materials.map(m => `
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                            <td class="px-6 py-4 dark:text-white font-medium">${m.name}</td>
+                            <td class="px-6 py-4"><span class="px-2 py-1 rounded-md text-xs font-bold ${m.stock < 10 ? 'bg-red-100 text-red-600' : 'bg-slate-100 dark:bg-slate-700 dark:text-slate-300'}">${m.stock} ${m.unit}</span></td>
+                            <td class="px-6 py-4"><button onclick="deleteMaterial(${m.id})" class="text-red-500"><i data-lucide="trash-2" width="18"></i></button></td>
+                        </tr>`).join(''))}
+                </div>`;
+        } else if (state.activeTab === 'history') {
+             content = `
+                <div class="space-y-6 pb-20 fade-in">
+                    <h2 class="text-2xl font-bold dark:text-white">History</h2>
+                    ${renderCommonTable(['Date', 'Product', 'Total', 'Action'], state.sales.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0, 50).map(s => `
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                            <td class="px-6 py-4 text-xs dark:text-slate-400">${formatDate(s.date)}</td>
+                            <td class="px-6 py-4 dark:text-white">
+                                <div class="font-medium">${s.productName}</div>
+                                <div class="text-xs text-slate-400">Qty: ${s.quantity}</div>
+                            </td>
+                            <td class="px-6 py-4 font-bold dark:text-white">${formatPHP(s.total)}</td>
+                            <td class="px-6 py-4"><button onclick="deleteSale('${s.id}')" class="text-red-500"><i data-lucide="rotate-ccw" width="18"></i></button></td>
+                        </tr>`).join(''))}
+                </div>`;
+        } else if (state.activeTab === 'settings') {
+            content = `
+                <div class="space-y-6 pb-20 fade-in">
+                    <h2 class="text-2xl font-bold dark:text-white">Settings</h2>
+                    
+                    <div class="bg-white dark:bg-slate-800 p-6 rounded-xl border dark:border-slate-700 shadow-sm">
+                        <h3 class="font-bold mb-4 dark:text-white">Theme</h3>
+                        <div class="flex gap-4 items-center mb-6">
+                            <button onclick="toggleDarkMode()" class="p-3 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-yellow-400">
+                                <i data-lucide="${state.darkMode ? 'sun' : 'moon'}" width="20"></i>
+                            </button>
+                            <span class="text-sm dark:text-slate-400">Toggle Dark Mode</span>
+                        </div>
+                        <div class="flex gap-3">
+                            ${['cyan','blue','violet','pink','orange'].map(c => `<button onclick="setThemeColor('${c}')" class="w-10 h-10 rounded-full bg-${c}-500 ring-2 ${state.themeColor===c?'ring-offset-2 ring-slate-400':'ring-transparent'}"></button>`).join('')}
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800 p-6 rounded-xl border dark:border-slate-700 shadow-sm space-y-4">
+                        <h3 class="font-bold dark:text-white">Data Management</h3>
+                        <button onclick="backupData()" class="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 dark:bg-slate-700 rounded-xl font-bold dark:text-white"><i data-lucide="download" width="18"></i> Backup Data</button>
+                        <div class="relative">
+                            <input type="file" id="restore-input" class="hidden" onchange="handleRestoreFile(event)">
+                            <button onclick="triggerRestore()" class="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 dark:bg-slate-700 rounded-xl font-bold dark:text-white"><i data-lucide="upload" width="18"></i> Restore Data</button>
+                        </div>
+                        <button onclick="resetApp()" class="w-full flex items-center justify-center gap-2 py-3 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-xl font-bold"><i data-lucide="trash-2" width="18"></i> Factory Reset</button>
+                    </div>
+                </div>`;
+        } else {
+            content = renderPOS();
+        }
+
+        app.innerHTML = `
+            ${renderSidebar()}
+            <main class="flex-1 h-screen overflow-y-auto bg-slate-50 dark:bg-slate-950 w-full relative">
+                <header class="md:hidden sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-4 flex justify-between items-center">
+                    <span class="font-bold text-lg dark:text-white">Z&Z Manager</span>
+                    <button onclick="toggleMobileMenu()"><i data-lucide="menu" class="dark:text-white"></i></button>
+                </header>
+                <div class="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto min-h-full">
+                    ${content}
+                </div>
+            </main>
+        `;
+        lucide.createIcons();
+    }
+
+    // Init
+    if(state.darkMode) document.documentElement.classList.add('dark');
+    renderApp();
+
+</script>
+</body>
+</html>
