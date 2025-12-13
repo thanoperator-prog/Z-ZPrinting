@@ -81,25 +81,7 @@
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js')
-                .then(registration => {
-                    console.log('SW registered');
-                    
-                    // Listen for updates to notify user
-                    registration.onupdatefound = () => {
-                        const installingWorker = registration.installing;
-                        if (installingWorker == null) return;
-
-                        installingWorker.onstatechange = () => {
-                            if (installingWorker.state === 'installed') {
-                                if (navigator.serviceWorker.controller) {
-                                    showToast('New version available! Restart app.');
-                                } else {
-                                    showToast('App ready for offline use!');
-                                }
-                            }
-                        };
-                    };
-                })
+                .then(reg => console.log('SW registered:', reg))
                 .catch(err => console.log('SW failed:', err));
         });
     }
@@ -420,11 +402,7 @@
         }, null, 2)], { type: 'application/json' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        
-        // Use App Name for filename (sanitized)
-        const safeName = state.appName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
-        link.download = `${safeName}-backup-${getPHDateString()}.json`;
-        
+        link.download = `zz-backup-${getPHDateString()}.json`;
         link.click();
     };
     window.triggerRestore = () => document.getElementById('restore-input').click();
@@ -951,7 +929,7 @@
                 <header class="md:hidden sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-4 flex justify-between items-center">
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 rounded-lg shadow-sm bg-white overflow-hidden flex items-center justify-center">
-                             <img src="icon-512.png" class="w-full h-full object-cover" alt="Logo" onerror="this.src='https://via.placeholder.com/150?text=Z%26Z'">
+                             <img src="icon-512.png" class="w-full h-full object-cover" alt="Logo">
                         </div>
                         <span class="font-bold text-lg dark:text-white">${state.appName}</span>
                     </div>
