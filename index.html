@@ -21,7 +21,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
     <!-- Configure Tailwind -->
     <script>
@@ -413,6 +417,175 @@
     window.setDashboardView = (m) => { state.dashboardViewMode = m; renderApp(); };
     window.setDashboardDate = (k, v) => { state.dashboardDateRange[k] = v; renderApp(); };
 
+    // --- PDF REPORT GENERATION (Range Support) ---
+    window.generateReport = () => {
+        const startInput = document.getElementById('report-start').value;
+        const endInput = document.getElementById('report-end').value;
+        
+        if(!startInput || !endInput) return showToast("Select date range");
+        if(startInput > endInput) return showToast("Invalid range: Start date must be before End date");
+        
+        // Filter Data
+        const rangeSales = state.sales.filter(s => {
+            const d = getPHDateString(s.date);
+            return d >= startInput && d <= endInput;
+        }).sort((a,b) => new Date(a.date) - new Date(b.date));
+
+        if(rangeSales.length === 0) return showToast("No sales found in range");
+
+        // Calculations
+        const totalRev = rangeSales.reduce((a,b) => a + b.total, 0);
+        const totalProfit = rangeSales.reduce((a,b) => a + b.profit, 0);
+        const tithe = totalRev * 0.1;
+        const net = totalProfit - tithe;
+
+        // Initialize PDF
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.width;
+        
+        // Formatting helpers
+        const isRange = startInput !== endInput;
+        const dateText = isRange 
+            ? `${new Date(startInput).toLocaleDateString('en-US', {month:'short', day:'numeric'})} - ${new Date(endInput).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}`
+            : new Date(startInput).toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        // --- PDF DESIGN ---
+        
+        // 1. Header Background
+        doc.setFillColor(15, 23, 42); // slate-900
+        doc.rect(0, 0, pageWidth, 45, 'F');
+
+        // 2. Header Text
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.text(state.appName, 14, 22);
+
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(148, 163, 184); // slate-400
+        doc.text(isRange ? "Sales Report (Custom Range)" : "Daily Sales Report", 14, 32);
+        
+        doc.setTextColor(255, 255, 255); 
+        doc.setFontSize(10);
+        doc.text(dateText, pageWidth - 14, 32, { align: 'right' });
+
+        // 3. Financial Summary
+        doc.setTextColor(51, 65, 85); // slate-700
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text("Financial Summary", 14, 60);
+
+        // Define summary table data
+        const summaryBody = [
+            [{ content: 'Total Revenue', styles: { halign: 'left', fontStyle: 'bold' } }, { content: formatPHP(totalRev), styles: { halign: 'right', fontStyle: 'bold' } }],
+            [{ content: 'Gross Profit', styles: { halign: 'left' } }, { content: formatPHP(totalProfit), styles: { halign: 'right' } }],
+            [{ content: 'Tithes (10%)', styles: { halign: 'left', textColor: [147, 51, 234] } }, { content: formatPHP(tithe), styles: { halign: 'right', textColor: [147, 51, 234] } }],
+            [{ content: 'Net Profit', styles: { halign: 'left', fontStyle: 'bold', textColor: [22, 163, 74], fontSize: 12 } }, { content: formatPHP(net), styles: { halign: 'right', fontStyle: 'bold', textColor: [22, 163, 74], fontSize: 12 } }]
+        ];
+
+        doc.autoTable({
+            startY: 65,
+            body: summaryBody,
+            theme: 'plain',
+            styles: { fontSize: 11, cellPadding: 3, textColor: [51, 65, 85] },
+            columnStyles: { 
+                0: { cellWidth: 50 }, 
+                1: { cellWidth: 50 } 
+            },
+            margin: { left: 14, right: 14 }
+        });
+
+        // 4. Transactions Table
+        const transactionsY = doc.lastAutoTable.finalY + 15;
+        doc.setTextColor(51, 65, 85);
+        doc.setFontSize(14);
+        doc.text("Transaction Details", 14, transactionsY);
+
+        let headRow = [];
+        let body = [];
+
+        if(isRange) {
+            headRow = ['Date', 'Time', 'Item', 'Qty', 'Amount'];
+            body = rangeSales.map(s => [
+                new Date(s.date).toLocaleDateString('en-US', {month:'numeric', day:'numeric'}),
+                new Date(s.date).toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'}),
+                s.productName,
+                s.quantity.toString(),
+                formatPHP(s.total)
+            ]);
+        } else {
+            headRow = ['Time', 'Item', 'Qty', 'Amount'];
+            body = rangeSales.map(s => [
+                new Date(s.date).toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'}),
+                s.productName,
+                s.quantity.toString(),
+                formatPHP(s.total)
+            ]);
+        }
+
+        doc.autoTable({
+            startY: transactionsY + 5,
+            head: [headRow],
+            body: body,
+            theme: 'striped',
+            headStyles: { 
+                fillColor: [30, 41, 59], // Slate-800
+                textColor: [255, 255, 255], 
+                fontStyle: 'bold',
+                halign: 'center' // Default
+            },
+            styles: { 
+                fontSize: 10, 
+                cellPadding: 4, 
+                valign: 'middle' 
+            },
+            alternateRowStyles: {
+                fillColor: [241, 245, 249] // Slate-100
+            },
+            // Explicitly define widths to prevent overflow (lagpas)
+            // A4 Width = 210mm. Margins = 14mm each side. Available = ~182mm.
+            columnStyles: isRange ? { 
+                0: { cellWidth: 25, halign: 'center' }, // Date
+                1: { cellWidth: 25, halign: 'center' }, // Time
+                2: { cellWidth: 'auto', halign: 'left' }, // Item (Takes remaining space)
+                3: { cellWidth: 20, halign: 'center' }, // Qty
+                4: { cellWidth: 40, halign: 'right', fontStyle: 'bold' } // Amount
+            } : { 
+                0: { cellWidth: 30, halign: 'center' }, // Time
+                1: { cellWidth: 'auto', halign: 'left' }, // Item (Takes remaining space)
+                2: { cellWidth: 25, halign: 'center' }, // Qty
+                3: { cellWidth: 40, halign: 'right', fontStyle: 'bold' } // Amount
+            },
+            margin: { left: 14, right: 14 },
+            
+            // CRITICAL FIX: Force alignment for every cell to override any defaults
+            didParseCell: function(data) {
+                // Determine index of Amount column
+                const amountIndex = isRange ? 4 : 3;
+                if (data.column.index === amountIndex) {
+                    data.cell.styles.halign = 'right';
+                }
+            }
+        });
+
+        // 5. Footer
+        const pageCount = doc.internal.getNumberOfPages();
+        for(let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(9);
+            doc.setTextColor(148, 163, 184);
+            doc.text(`Generated by ${state.appName} - Page ${i} of ${pageCount}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+        }
+
+        // Save
+        const safeName = state.appName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+        doc.save(`${safeName}-report-${startInput}-to-${endInput}.pdf`);
+        showToast("PDF Downloaded!");
+    };
+
+
     // Data Management
     window.backupData = () => {
         const blob = new Blob([JSON.stringify({ 
@@ -726,6 +899,17 @@
             const recentActivity = [...state.sales]
                 .sort((a,b) => new Date(b.date) - new Date(a.date))
                 .slice(0, 5);
+
+            // New: Top Selling Services
+            const productStats = {};
+            relSales.forEach(s => {
+                if(!productStats[s.productName]) productStats[s.productName] = { name: s.productName, qty: 0, total: 0 };
+                productStats[s.productName].qty += s.quantity;
+                productStats[s.productName].total += s.total;
+            });
+            const topProducts = Object.values(productStats)
+                .sort((a,b) => b.qty - a.qty)
+                .slice(0, 5);
             
             content = `
                 <div class="space-y-6 pb-20 fade-in">
@@ -768,7 +952,7 @@
                     </div>
 
                     <!-- New Sections -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                          <!-- Low Stock Alerts -->
                         <div class="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 shadow-sm overflow-hidden flex flex-col">
                             <div class="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
@@ -787,8 +971,29 @@
                             </div>
                         </div>
 
-                        <!-- Recent Activity -->
+                        <!-- Top Selling -->
                         <div class="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 shadow-sm overflow-hidden flex flex-col">
+                            <div class="p-4 border-b border-slate-100 dark:border-slate-700">
+                                <h3 class="font-bold dark:text-white">Top Services</h3>
+                            </div>
+                            <div class="p-4 overflow-y-auto max-h-64 space-y-3">
+                                ${topProducts.length === 0 
+                                    ? '<div class="text-center text-slate-400 text-sm py-4">No sales data</div>' 
+                                    : topProducts.map((p, i) => `
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded-full bg-${['yellow','slate','orange'][i] || 'slate'}-100 dark:bg-slate-700 flex items-center justify-center font-bold text-xs ${i===0?'text-yellow-600':i===1?'text-slate-500':i===2?'text-orange-500':'text-slate-400'}">#${i+1}</div>
+                                            <div class="flex-1 min-w-0">
+                                                <div class="text-sm font-bold dark:text-white truncate">${p.name}</div>
+                                                <div class="text-xs text-slate-400">${p.qty} sold</div>
+                                            </div>
+                                            <div class="font-bold text-sm text-slate-600 dark:text-slate-300">${formatPHP(p.total)}</div>
+                                        </div>
+                                    `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Recent Activity -->
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 shadow-sm overflow-hidden flex flex-col md:col-span-2 xl:col-span-1">
                             <div class="p-4 border-b border-slate-100 dark:border-slate-700">
                                 <h3 class="font-bold dark:text-white">Recent Sales</h3>
                             </div>
@@ -884,19 +1089,53 @@
                         </tr>`).join(''))}
                 </div>`;
         } else if (state.activeTab === 'history') {
-             content = `
+            // Group sales by date (Transaction)
+            const groups = {};
+            state.sales.forEach(s => {
+                if (!groups[s.date]) {
+                    groups[s.date] = { date: s.date, items: [], total: 0 };
+                }
+                groups[s.date].items.push(s);
+                groups[s.date].total += s.total;
+            });
+
+            // Sort by date descending
+            const sortedGroups = Object.values(groups).sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            content = `
                 <div class="space-y-6 pb-20 fade-in">
-                    <h2 class="text-2xl font-bold dark:text-white">History</h2>
-                    ${renderCommonTable(['Date', 'Product', 'Total', 'Action'], state.sales.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0, 50).map(s => `
-                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                            <td class="px-6 py-4 text-xs dark:text-slate-400">${formatDate(s.date)}</td>
-                            <td class="px-6 py-4 dark:text-white">
-                                <div class="font-medium">${s.productName}</div>
-                                <div class="text-xs text-slate-400">Qty: ${s.quantity}</div>
-                            </td>
-                            <td class="px-6 py-4 font-bold dark:text-white">${formatPHP(s.total)}</td>
-                            <td class="px-6 py-4"><button onclick="deleteSale('${s.id}')" class="text-red-500"><i data-lucide="trash-2" width="18"></i></button></td>
-                        </tr>`).join(''))}
+                    <h2 class="text-2xl font-bold dark:text-white">Transaction History</h2>
+                    <div class="space-y-4">
+                        ${sortedGroups.length === 0 
+                            ? '<div class="text-center text-slate-400 py-10">No history yet</div>' 
+                            : sortedGroups.map(g => `
+                            <div class="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm">
+                                <div class="flex justify-between items-center mb-3 pb-3 border-b border-slate-100 dark:border-slate-700">
+                                    <div>
+                                        <div class="text-sm font-bold dark:text-white">${formatDate(g.date)}</div>
+                                        <div class="text-xs text-slate-500">${g.items.length} Items</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="font-bold text-lg text-${state.themeColor}-600 dark:text-${state.themeColor}-400">${formatPHP(g.total)}</div>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    ${g.items.map(item => `
+                                        <div class="flex justify-between items-center text-sm group">
+                                            <div class="flex items-center gap-3 overflow-hidden">
+                                                <span class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold px-2 py-0.5 rounded-md min-w-[2rem] text-center">${item.quantity}x</span>
+                                                <span class="dark:text-slate-300 truncate">${item.productName}</span>
+                                            </div>
+                                            <div class="flex items-center gap-3 shrink-0">
+                                                <span class="font-medium dark:text-slate-200">${formatPHP(item.total)}</span>
+                                                <button onclick="deleteSale('${item.id}')" class="text-slate-300 hover:text-red-500 transition-colors p-1"><i data-lucide="trash-2" width="14"></i></button>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>`;
         } else if (state.activeTab === 'settings') {
             content = `
@@ -915,6 +1154,24 @@
                                 <input type="text" value="${state.appSubtitle}" onchange="state.appSubtitle = this.value; saveState()" class="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white mt-1">
                             </div>
                         </div>
+                    </div>
+
+                    <!-- PDF Reports Section -->
+                    <div class="bg-white dark:bg-slate-800 p-6 rounded-xl border dark:border-slate-700 shadow-sm space-y-4">
+                        <h3 class="font-bold dark:text-white flex items-center gap-2"><i data-lucide="file-text" width="20" class="text-indigo-500"></i> Reports</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="flex flex-col gap-2">
+                                <label class="text-xs font-bold text-slate-500 uppercase">From</label>
+                                <input type="date" id="report-start" class="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${getPHDateString()}">
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <label class="text-xs font-bold text-slate-500 uppercase">To</label>
+                                <input type="date" id="report-end" class="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white" value="${getPHDateString()}">
+                            </div>
+                        </div>
+                        <button onclick="generateReport()" class="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 active:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/30 transition-all hover:scale-[1.02]">
+                            <i data-lucide="download" width="18"></i> Generate Report
+                        </button>
                     </div>
 
                     <div class="bg-white dark:bg-slate-800 p-6 rounded-xl border dark:border-slate-700 shadow-sm">
