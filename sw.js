@@ -1,13 +1,13 @@
-const CACHE_NAME = 'zz-printing-v8';
+const CACHE_NAME = 'zz-printing-v9';
 
 // Critical resources. The SW will fail to install if any of these are missing.
-// This ensures the app doesn't install in a broken state.
+// We now use a SPECIFIC version of Lucide to ensure offline caching works perfectly.
 const CORE_ASSETS = [
   './',
   './index.html',
   './manifest.json',
   'https://cdn.tailwindcss.com',
-  'https://unpkg.com/lucide@latest'
+  'https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js'
 ];
 
 // Optional resources (like icons). We try to cache them, but if they fail
