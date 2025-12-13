@@ -3,13 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Z&Z Printing Manager</title>
+    <title>Printing Business</title>
     
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
+    
+    <!-- Favicon & App Icon -->
+    <link rel="icon" href="icon-512.png" type="image/png">
+    <link rel="apple-touch-icon" href="icon-512.png">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -51,18 +55,19 @@
         .slide-in-right { animation: slideInRight 0.3s ease-out; }
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
 
-        /* Mobile Optimizations */
+        /* Mobile Optimizations & Highlight Removal */
         body { -webkit-tap-highlight-color: transparent; }
+        * { -webkit-tap-highlight-color: transparent; outline: none; }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-300">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-300 select-none">
 
     <div id="app" class="flex h-screen overflow-hidden">
         <!-- App Content Injected Here -->
     </div>
 
     <!-- Toast & Modal Containers -->
-    <div id="toast-container" class="fixed top-6 right-6 z-[60] flex flex-col gap-2 pointer-events-none"></div>
+    <div id="toast-container" class="fixed top-6 right-6 z-[100] flex flex-col gap-2 pointer-events-none"></div>
     <div id="modal-container"></div>
 
 <script>
@@ -90,6 +95,8 @@
         sales: JSON.parse(localStorage.getItem(`zz_sales_${DB_VERSION}`)) || [],
         darkMode: localStorage.getItem('zz_darkMode') === 'true',
         themeColor: localStorage.getItem('zz_themeColor') || 'cyan',
+        appName: localStorage.getItem('zz_appName') || 'Printing Business',
+        appSubtitle: localStorage.getItem('zz_appSubtitle') || 'PWA Edition',
         
         // Dashboard
         dashboardViewMode: 'all',
@@ -108,6 +115,8 @@
 
         // Materials
         isMatAdding: false,
+        editingMaterialId: null,
+        tempMaterial: { name: '', unit: '', stock: '', costPerUnit: '' },
         newMaterial: { name: '', unit: 'Sheet', stock: '', costPerUnit: '' },
 
         // History
@@ -121,6 +130,8 @@
         localStorage.setItem(`zz_sales_${DB_VERSION}`, JSON.stringify(state.sales));
         localStorage.setItem('zz_darkMode', state.darkMode);
         localStorage.setItem('zz_themeColor', state.themeColor);
+        localStorage.setItem('zz_appName', state.appName);
+        localStorage.setItem('zz_appSubtitle', state.appSubtitle);
         
         if (state.darkMode) document.documentElement.classList.add('dark');
         else document.documentElement.classList.remove('dark');
@@ -163,6 +174,7 @@
 
     window.toggleMobileMenu = () => {
         state.isMobileMenuOpen = !state.isMobileMenuOpen;
+        if(state.isMobileMenuOpen) state.isMobileCartOpen = false; // Close cart if menu opens
         renderApp();
     };
 
@@ -177,21 +189,46 @@
     };
 
     // --- Material Actions ---
-    window.toggleAddMaterial = () => { state.isMatAdding = !state.isMatAdding; renderApp(); };
+    window.toggleAddMaterial = () => { 
+        state.isMatAdding = !state.isMatAdding; 
+        state.editingMaterialId = null;
+        state.tempMaterial = { name: '', unit: '', stock: '', costPerUnit: '' };
+        renderApp(); 
+    };
+    
+    window.editMaterial = (id) => {
+        const m = state.materials.find(m => m.id === id);
+        if(m) {
+            state.tempMaterial = { ...m };
+            state.editingMaterialId = id;
+            state.isMatAdding = true;
+            renderApp();
+        }
+    };
+
     window.saveMaterial = (e) => {
         e.preventDefault();
         const form = e.target;
-        state.materials.push({
-            id: Date.now(),
+        const data = {
             name: form.name.value,
             unit: form.unit.value,
             stock: parseInt(form.stock.value),
-            costPerUnit: parseFloat(form.costPerUnit.value || 0)
-        });
+            costPerUnit: parseFloat(form.costPerUnit?.value || 0)
+        };
+
+        if (state.editingMaterialId) {
+            state.materials = state.materials.map(m => m.id === state.editingMaterialId ? { ...data, id: state.editingMaterialId } : m);
+            showToast("Material Updated");
+        } else {
+            state.materials.push({ id: Date.now(), ...data });
+            showToast("Material Added");
+        }
+        
         state.isMatAdding = false;
+        state.editingMaterialId = null;
         saveState();
-        showToast("Material Added");
     };
+
     window.deleteMaterial = (id) => openConfirmModal('Delete?', 'Cannot be undone.', () => {
         state.materials = state.materials.filter(m => m.id !== id);
         saveState();
@@ -256,7 +293,10 @@
     });
 
     // --- POS Actions ---
-    window.addToCart = (id) => {
+    window.addToCart = (e, id) => {
+        // Stop the click from bubbling up
+        if(e && e.stopPropagation) e.stopPropagation();
+        
         const p = state.products.find(p => p.id === id);
         if(!p) return;
 
@@ -268,12 +308,18 @@
                 max = Math.min(max, m ? Math.floor(m.stock / i.qty) : 0);
             });
         }
+
+        if(max === 0) return; // Cannot add if out of stock
         
         const existing = state.cart.find(c => c.id === id);
         if((existing ? existing.qty : 0) < max) {
             if(existing) existing.qty++;
             else state.cart.push({ ...p, qty: 1 });
-            showToast(`Added ${p.name}`); // Feedback for mobile
+            
+            // Force cart to stay closed
+            state.isMobileCartOpen = false;
+            
+            showToast(`Added ${p.name}`); 
             renderApp();
         } else {
             alert("Insufficient materials!");
@@ -286,6 +332,7 @@
     };
     window.toggleMobileCart = () => {
         state.isMobileCartOpen = !state.isMobileCartOpen;
+        if(state.isMobileCartOpen) state.isMobileMenuOpen = false; // Close menu if cart opens
         renderApp();
     };
     window.checkout = () => {
@@ -406,30 +453,30 @@
     }
 
     function renderSidebar() {
+        // Removed 'settings' from this list to handle it separately
         const items = [
             { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
             { id: 'pos', label: 'POS', icon: 'shopping-cart' },
             { id: 'products', label: 'Products', icon: 'package' }, // Renamed from Inventory for brevity
             { id: 'materials', label: 'Materials', icon: 'layers' },
-            { id: 'history', label: 'History', icon: 'history' },
-            { id: 'settings', label: 'Settings', icon: 'settings' }
+            { id: 'history', label: 'History', icon: 'history' }
         ];
 
         return `
             <!-- Mobile Overlay -->
-            <div onclick="toggleMobileMenu()" class="fixed inset-0 bg-slate-900/50 z-40 md:hidden ${state.isMobileMenuOpen ? 'block' : 'hidden'} backdrop-blur-sm transition-opacity"></div>
+            <div onclick="toggleMobileMenu()" class="fixed inset-0 bg-slate-900/50 z-[60] md:hidden ${state.isMobileMenuOpen ? 'block' : 'hidden'} backdrop-blur-sm transition-opacity"></div>
             
             <!-- Sidebar -->
-            <aside class="fixed md:static inset-y-0 left-0 z-50 w-72 bg-slate-900 dark:bg-slate-950 text-white transform transition-transform duration-300 ${state.isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col shadow-2xl md:shadow-none">
+            <aside class="fixed md:static inset-y-0 left-0 z-[70] w-72 bg-slate-900 dark:bg-slate-950 text-white transform transition-transform duration-300 ${state.isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col shadow-2xl md:shadow-none">
                 <div class="p-6 flex items-center gap-4 border-b border-slate-800">
-                    <div class="w-10 h-10 bg-gradient-to-br from-${state.themeColor}-400 to-${state.themeColor}-600 rounded-xl flex items-center justify-center shadow-lg">
-                        <i data-lucide="printer" class="text-white" width="20"></i>
-                    </div>
+                    <img src="icon-512.png" class="w-10 h-10 rounded-xl shadow-lg bg-white object-cover" alt="Logo">
                     <div>
-                        <h1 class="font-bold text-xl tracking-tight">Z&Z Manager</h1>
-                        <p class="text-xs text-slate-400">PWA Edition</p>
+                        <h1 class="font-bold text-xl tracking-tight leading-none mb-1">${state.appName}</h1>
+                        <p class="text-xs text-slate-400">${state.appSubtitle}</p>
                     </div>
                 </div>
+                
+                <!-- Main Navigation (Scrollable) -->
                 <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
                     ${items.map(i => `
                         <button onclick="setTab('${i.id === 'products' ? 'inventory' : i.id}')" class="w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all font-medium ${state.activeTab === (i.id === 'products' ? 'inventory' : i.id) ? getThemeClasses('active-nav') : 'text-slate-400 hover:bg-slate-800 hover:text-white'}">
@@ -437,6 +484,13 @@
                         </button>
                     `).join('')}
                 </nav>
+
+                <!-- Settings Tab (Pinned to Bottom) -->
+                <div class="p-4 border-t border-slate-800 mt-auto">
+                    <button onclick="setTab('settings')" class="w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all font-medium ${state.activeTab === 'settings' ? getThemeClasses('active-nav') : 'text-slate-400 hover:bg-slate-800 hover:text-white'}">
+                        <i data-lucide="settings" width="22"></i> Settings
+                    </button>
+                </div>
             </aside>
         `;
     }
@@ -468,25 +522,69 @@
 
                     <!-- Grid -->
                     <div class="flex-1 overflow-y-auto pb-24 md:pb-0 pr-1">
+                        <!-- Reverted mobile to 2 columns. Tablet (up to lg) stays 2 columns to match. -->
                         <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                             ${filtered.map(p => {
                                 let available = true, max = 999;
-                                p.recipe?.forEach(r => {
+                                
+                                // Calculate stock and generate recipe HTML list
+                                const recipeHtml = p.recipe?.map(r => {
                                     const m = state.materials.find(mat => mat.id === r.materialId);
-                                    if(!m) { available=false; max=0; }
-                                    else max = Math.min(max, Math.floor(m.stock/r.qty));
-                                });
-                                const isLow = available && max < 10;
+                                    
+                                    // If material was deleted from database
+                                    if(!m) { 
+                                        available = false; 
+                                        return `<div class="flex justify-between items-center text-[10px] text-red-500 font-bold"><span>${r.name}</span><span>Missing Data</span></div>`; 
+                                    }
+                                    
+                                    // Calculate how many we can make based on this specific material
+                                    const canMake = Math.floor(m.stock / r.qty);
+                                    max = Math.min(max, canMake);
+                                    
+                                    // Determine display status
+                                    const isEnough = m.stock >= r.qty;
+                                    let colorClass = 'text-slate-400 dark:text-slate-500';
+                                    let statusText = `${r.qty} ${m.unit}`;
+
+                                    if (!isEnough) {
+                                        colorClass = 'text-red-500 font-bold';
+                                        statusText = `0/${r.qty}`; // Show 0 available vs required
+                                        available = false; // Mark overall product as unavailable
+                                    } else if (m.stock < 10) {
+                                        colorClass = 'text-orange-500 font-medium';
+                                    } else if (canMake < 10) {
+                                         // If we have stock but it's getting tight relative to recipe
+                                         colorClass = 'text-orange-500 font-medium';
+                                    }
+                                    
+                                    return `<div class="flex justify-between items-center text-[10px] ${colorClass}">
+                                        <span class="truncate pr-1 max-w-[70%]">${m.name}</span>
+                                        <span>${statusText}</span>
+                                    </div>`;
+                                }).join('') || ''; // Default to empty string if no recipe
+
+                                // Final check if logic forced available to false (e.g. max calculation resulted in 0)
+                                if (max === 0) available = false;
+                                
+                                const isOutOfStock = !available;
+                                const isLowStock = available && max < 10;
 
                                 return `
-                                <div onclick="${available ? `addToCart(${p.id})` : ''}" class="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden transition-all active:scale-95 touch-manipulation ${!available ? 'opacity-60 grayscale' : `hover:border-${state.themeColor}-500`}">
-                                    ${isLow ? '<div class="absolute top-0 right-0 bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-bl-lg font-bold">Low</div>' : ''}
-                                    <div class="flex justify-between items-start mb-2">
+                                <div onclick="${available ? `addToCart(event, ${p.id})` : ''}" class="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden transition-all active:scale-95 touch-manipulation flex flex-col h-full ${!available ? 'opacity-70 bg-slate-50 dark:bg-slate-900 cursor-not-allowed' : `hover:border-${state.themeColor}-500`}">
+                                    ${isLowStock ? '<div class="absolute top-0 right-0 bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-bl-lg font-bold z-10">Low</div>' : ''}
+                                    ${!available ? '<div class="absolute top-0 right-0 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-bl-lg font-bold z-10">No Stock</div>' : ''}
+                                    
+                                    <div class="flex justify-between items-start mb-1">
                                         <span class="text-[10px] font-bold text-slate-400 uppercase bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">${p.category.substr(0,8)}</span>
                                         <span class="font-bold text-${state.themeColor}-600 dark:text-${state.themeColor}-400">${formatPHP(p.price)}</span>
                                     </div>
-                                    <h4 class="font-bold text-slate-800 dark:text-slate-200 text-sm leading-tight mb-1 line-clamp-2 h-10">${p.name}</h4>
-                                    ${!available ? '<p class="text-xs text-red-500 font-bold">Unavailable</p>' : ''}
+                                    
+                                    <h4 class="font-bold text-slate-800 dark:text-slate-200 text-sm leading-tight mb-2 line-clamp-2">${p.name}</h4>
+                                    
+                                    <!-- Materials List -->
+                                    <div class="mt-auto pt-2 border-t border-slate-100 dark:border-slate-700 space-y-0.5 min-h-[1.5rem]">
+                                        ${recipeHtml}
+                                    </div>
                                 </div>`;
                             }).join('')}
                         </div>
@@ -499,9 +597,10 @@
                 </div>
 
                 <!-- Mobile Cart Modal -->
-                <div class="md:hidden fixed inset-0 z-50 flex flex-col justify-end pointer-events-none">
+                <!-- Added 'invisible' and 'z-[-1]' when closed to prevent ghost clicks -->
+                <div class="md:hidden fixed inset-0 flex flex-col justify-end pointer-events-none transition-all duration-300 ${state.isMobileCartOpen ? 'z-[60] visible' : 'z-[-1] invisible'}">
                     <!-- Overlay -->
-                    <div onclick="toggleMobileCart()" class="absolute inset-0 bg-black/60 transition-opacity pointer-events-auto ${state.isMobileCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}"></div>
+                    <div onclick="toggleMobileCart()" class="absolute inset-0 bg-black/60 transition-opacity pointer-events-auto ${state.isMobileCartOpen ? 'opacity-100' : 'opacity-0'}"></div>
                     
                     <!-- Bottom Sheet -->
                     <div class="bg-white dark:bg-slate-800 w-full rounded-t-2xl shadow-2xl transform transition-transform duration-300 pointer-events-auto flex flex-col max-h-[85vh] ${state.isMobileCartOpen ? 'translate-y-0' : 'translate-y-full'}">
@@ -591,7 +690,17 @@
                 return true;
             });
             const rev = relSales.reduce((a,s)=>a+s.total,0);
-            const profit = relSales.reduce((a,s)=>a+s.profit,0);
+            const grossProfit = relSales.reduce((a,s)=>a+s.profit,0);
+            const tithes = rev * 0.10;
+            const netProfit = grossProfit - tithes;
+            
+            // New: Filter Low Stock Materials
+            const lowStockMaterials = state.materials.filter(m => m.stock < 10);
+            
+            // New: Recent Activity (Last 5 sales)
+            const recentActivity = [...state.sales]
+                .sort((a,b) => new Date(b.date) - new Date(a.date))
+                .slice(0, 5);
             
             content = `
                 <div class="space-y-6 pb-20 fade-in">
@@ -602,24 +711,75 @@
                         </div>
                     </div>
                     ${state.dashboardViewMode === 'custom' ? `
-                        <div class="flex gap-2 bg-white dark:bg-slate-800 p-3 rounded-xl border dark:border-slate-700">
-                            <input type="date" onchange="setDashboardDate('start',this.value)" value="${state.dashboardDateRange.start}" class="bg-transparent dark:text-white outline-none border rounded p-1 text-sm">
-                            <span class="self-center">-</span>
-                            <input type="date" onchange="setDashboardDate('end',this.value)" value="${state.dashboardDateRange.end}" class="bg-transparent dark:text-white outline-none border rounded p-1 text-sm">
+                        <div class="flex flex-wrap items-end gap-3 bg-white dark:bg-slate-800 p-4 rounded-xl border dark:border-slate-700 shadow-sm">
+                            <div class="flex flex-col gap-1">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Start Date</span>
+                                <input type="date" onchange="setDashboardDate('start',this.value)" value="${state.dashboardDateRange.start}" class="bg-slate-50 dark:bg-slate-700 dark:text-white outline-none border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-${state.themeColor}-500">
+                            </div>
+                            <span class="self-center text-slate-400 pb-2 hidden sm:block">-</span>
+                            <div class="flex flex-col gap-1">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">End Date</span>
+                                <input type="date" onchange="setDashboardDate('end',this.value)" value="${state.dashboardDateRange.end}" class="bg-slate-50 dark:bg-slate-700 dark:text-white outline-none border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-${state.themeColor}-500">
+                            </div>
                         </div>` : ''
                     }
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg shadow-blue-500/20">
                             <p class="text-blue-100 text-sm font-medium mb-1">Total Revenue</p>
                             <p class="text-3xl font-bold">${formatPHP(rev)}</p>
                         </div>
                         <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border dark:border-slate-700 shadow-sm">
+                            <p class="text-slate-500 text-sm font-medium mb-1">Church Tithes (10%)</p>
+                            <p class="text-3xl font-bold text-purple-500">${formatPHP(tithes)}</p>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border dark:border-slate-700 shadow-sm">
                             <p class="text-slate-500 text-sm font-medium mb-1">Net Profit</p>
-                            <p class="text-3xl font-bold text-green-500">${formatPHP(profit)}</p>
+                            <p class="text-3xl font-bold text-green-500">${formatPHP(netProfit)}</p>
                         </div>
                         <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border dark:border-slate-700 shadow-sm">
                             <p class="text-slate-500 text-sm font-medium mb-1">Transactions</p>
                             <p class="text-3xl font-bold dark:text-white">${relSales.length}</p>
+                        </div>
+                    </div>
+
+                    <!-- New Sections -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                         <!-- Low Stock Alerts -->
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 shadow-sm overflow-hidden flex flex-col">
+                            <div class="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                                <h3 class="font-bold dark:text-white">Low Stock Alerts</h3>
+                                <span class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-md font-bold">${lowStockMaterials.length} Items</span>
+                            </div>
+                            <div class="p-4 overflow-y-auto max-h-64">
+                                ${lowStockMaterials.length === 0 
+                                    ? '<div class="text-center text-slate-400 py-4 text-sm">All materials in stock</div>' 
+                                    : lowStockMaterials.map(m => `
+                                        <div class="flex justify-between items-center py-2 border-b border-slate-50 dark:border-slate-700 last:border-0">
+                                            <span class="text-sm dark:text-slate-300 font-medium">${m.name}</span>
+                                            <span class="text-xs font-bold text-red-500">${m.stock} ${m.unit}</span>
+                                        </div>
+                                    `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Recent Activity -->
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 shadow-sm overflow-hidden flex flex-col">
+                            <div class="p-4 border-b border-slate-100 dark:border-slate-700">
+                                <h3 class="font-bold dark:text-white">Recent Sales</h3>
+                            </div>
+                            <div class="p-4 overflow-y-auto max-h-64">
+                                ${recentActivity.length === 0 
+                                    ? '<div class="text-center text-slate-400 py-4 text-sm">No sales yet</div>' 
+                                    : recentActivity.map(s => `
+                                        <div class="flex justify-between items-center py-3 border-b border-slate-50 dark:border-slate-700 last:border-0">
+                                            <div>
+                                                <div class="text-sm font-bold dark:text-white">${s.productName}</div>
+                                                <div class="text-xs text-slate-400">${formatDate(s.date)}</div>
+                                            </div>
+                                            <div class="font-bold text-${state.themeColor}-600 dark:text-${state.themeColor}-400">${formatPHP(s.total)}</div>
+                                        </div>
+                                    `).join('')}
+                            </div>
                         </div>
                     </div>
                 </div>`;
@@ -633,10 +793,10 @@
                     ${state.isInvAdding ? `
                         <form onsubmit="saveProduct(event)" class="bg-white dark:bg-slate-800 p-6 rounded-xl border dark:border-slate-700 space-y-4 shadow-xl slide-up">
                             <div class="grid grid-cols-2 gap-4">
-                                <input name="name" placeholder="Product Name" required value="${state.newItem.name}" class="col-span-2 p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                <input name="price" type="number" step="0.01" placeholder="Price" required value="${state.newItem.price}" class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                <input name="cost" type="number" step="0.01" placeholder="Cost" required value="${state.newItem.cost}" class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                <select name="category" class="col-span-2 p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <input name="name" placeholder="Product Name" required value="${state.newItem.name}" oninput="state.newItem.name = this.value" class="col-span-2 p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <input name="price" type="number" step="0.01" placeholder="Price" required value="${state.newItem.price}" oninput="state.newItem.price = this.value" class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <input name="cost" type="number" step="0.01" placeholder="Cost" required value="${state.newItem.cost}" oninput="state.newItem.cost = this.value" class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <select name="category" onchange="state.newItem.category = this.value" class="col-span-2 p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                                     ${['Xerox','Photo','Print','Laminate','Other'].map(c=>`<option ${state.newItem.category===c?'selected':''}>${c}</option>`).join('')}
                                 </select>
                                 <input type="hidden" name="stock" value="0">
@@ -648,7 +808,7 @@
                                     <button type="button" onclick="addRecipeIngredient()" class="bg-slate-200 dark:bg-slate-600 px-3 rounded font-bold">+</button>
                                 </div>
                                 <div class="space-y-1">
-                                    ${state.newItem.recipe.map((r,i) => `<div class="flex justify-between text-xs dark:text-slate-300"><span>${r.qty} x ${r.name}</span><span onclick="removeRecipeIngredient(${i})" class="text-red-500 cursor-pointer">x</span></div>`).join('')}
+                                    ${state.newItem.recipe.map((r,i) => `<div class="flex justify-between items-center text-xs dark:text-slate-300"><span>${r.qty} x ${r.name}</span><button onclick="removeRecipeIngredient(${i})" class="text-red-500"><i data-lucide="trash-2" width="14"></i></button></div>`).join('')}
                                 </div>
                             </div>
                             <button class="w-full py-3 rounded-xl font-bold ${getThemeClasses('btn-primary')}">Save</button>
@@ -676,19 +836,26 @@
                     </div>
                     ${state.isMatAdding ? `
                         <form onsubmit="saveMaterial(event)" class="bg-white dark:bg-slate-800 p-6 rounded-xl border dark:border-slate-700 space-y-4 shadow-xl slide-up">
-                            <input name="name" placeholder="Material Name" required class="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                            <div class="grid grid-cols-2 gap-4">
-                                <input name="unit" placeholder="Unit (e.g. Sheets)" required class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                <input name="stock" type="number" placeholder="Current Stock" required class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            <input name="name" placeholder="Material Name" required value="${state.tempMaterial.name}" class="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            <div class="grid grid-cols-3 gap-4">
+                                <input name="unit" placeholder="Unit (e.g. Sheets)" required value="${state.tempMaterial.unit}" class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <input name="stock" type="number" placeholder="Current Stock" required value="${state.tempMaterial.stock}" class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <input name="costPerUnit" type="number" step="0.01" placeholder="Cost/Unit" value="${state.tempMaterial.costPerUnit}" class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                             </div>
-                            <button class="w-full py-3 rounded-xl font-bold ${getThemeClasses('btn-primary')}">Save Material</button>
+                            <button class="w-full py-3 rounded-xl font-bold ${getThemeClasses('btn-primary')}">${state.editingMaterialId ? 'Update' : 'Save'} Material</button>
                         </form>
                     ` : ''}
                     ${renderCommonTable(['Name', 'Stock', 'Action'], state.materials.map(m => `
                         <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                            <td class="px-6 py-4 dark:text-white font-medium">${m.name}</td>
+                            <td class="px-6 py-4 dark:text-white font-medium">
+                                ${m.name}
+                                <div class="text-xs text-slate-400">Cost: ${formatPHP(m.costPerUnit||0)} / ${m.unit}</div>
+                            </td>
                             <td class="px-6 py-4"><span class="px-2 py-1 rounded-md text-xs font-bold ${m.stock < 10 ? 'bg-red-100 text-red-600' : 'bg-slate-100 dark:bg-slate-700 dark:text-slate-300'}">${m.stock} ${m.unit}</span></td>
-                            <td class="px-6 py-4"><button onclick="deleteMaterial(${m.id})" class="text-red-500"><i data-lucide="trash-2" width="18"></i></button></td>
+                            <td class="px-6 py-4 flex gap-2">
+                                <button onclick="editMaterial(${m.id})" class="text-blue-500"><i data-lucide="edit" width="18"></i></button>
+                                <button onclick="deleteMaterial(${m.id})" class="text-red-500"><i data-lucide="trash-2" width="18"></i></button>
+                            </td>
                         </tr>`).join(''))}
                 </div>`;
         } else if (state.activeTab === 'history') {
@@ -703,7 +870,7 @@
                                 <div class="text-xs text-slate-400">Qty: ${s.quantity}</div>
                             </td>
                             <td class="px-6 py-4 font-bold dark:text-white">${formatPHP(s.total)}</td>
-                            <td class="px-6 py-4"><button onclick="deleteSale('${s.id}')" class="text-red-500"><i data-lucide="rotate-ccw" width="18"></i></button></td>
+                            <td class="px-6 py-4"><button onclick="deleteSale('${s.id}')" class="text-red-500"><i data-lucide="trash-2" width="18"></i></button></td>
                         </tr>`).join(''))}
                 </div>`;
         } else if (state.activeTab === 'settings') {
@@ -711,6 +878,20 @@
                 <div class="space-y-6 pb-20 fade-in">
                     <h2 class="text-2xl font-bold dark:text-white">Settings</h2>
                     
+                    <div class="bg-white dark:bg-slate-800 p-6 rounded-xl border dark:border-slate-700 shadow-sm">
+                        <h3 class="font-bold mb-4 dark:text-white">App Branding</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 uppercase">App Name</label>
+                                <input type="text" value="${state.appName}" onchange="state.appName = this.value; saveState()" class="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white mt-1">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 uppercase">Subtitle</label>
+                                <input type="text" value="${state.appSubtitle}" onchange="state.appSubtitle = this.value; saveState()" class="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white mt-1">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="bg-white dark:bg-slate-800 p-6 rounded-xl border dark:border-slate-700 shadow-sm">
                         <h3 class="font-bold mb-4 dark:text-white">Theme</h3>
                         <div class="flex gap-4 items-center mb-6">
@@ -742,7 +923,10 @@
             ${renderSidebar()}
             <main class="flex-1 h-screen overflow-y-auto bg-slate-50 dark:bg-slate-950 w-full relative">
                 <header class="md:hidden sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-4 flex justify-between items-center">
-                    <span class="font-bold text-lg dark:text-white">Z&Z Manager</span>
+                    <div class="flex items-center gap-3">
+                        <img src="icon-512.png" class="w-8 h-8 rounded-lg shadow-sm bg-white object-cover" alt="Logo">
+                        <span class="font-bold text-lg dark:text-white">${state.appName}</span>
+                    </div>
                     <button onclick="toggleMobileMenu()"><i data-lucide="menu" class="dark:text-white"></i></button>
                 </header>
                 <div class="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto min-h-full">
@@ -755,6 +939,10 @@
 
     // Init
     if(state.darkMode) document.documentElement.classList.add('dark');
+    
+    // Auto-update name for existing users if it's still the old default
+    if(state.appName === 'Z&Z Manager') state.appName = 'Printing Business';
+    
     renderApp();
 
 </script>
