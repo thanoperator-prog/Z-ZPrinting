@@ -15,6 +15,9 @@ const ASSETS = [
 
 // Install Event
 self.addEventListener('install', (e) => {
+  // Force the waiting service worker to become the active service worker
+  self.skipWaiting();
+
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS);
@@ -22,11 +25,30 @@ self.addEventListener('install', (e) => {
   );
 });
 
+// Activate Event - Cleanup old caches
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then((keyList) => {
+      return Promise.all(keyList.map((key) => {
+        if (key !== CACHE_NAME) {
+          return caches.delete(key);
+        }
+      }));
+    }).then(() => self.clients.claim()) // Immediately control open clients
+  );
+});
+
 // Fetch Event (Offline Capability)
 self.addEventListener('fetch', (e) => {
   e.respondWith(
     caches.match(e.request).then((res) => {
-      return res || fetch(e.request);
+      // Return cached response if found, else fetch from network
+      return res || fetch(e.request).catch(() => {
+        // If network fails (offline) and it's a navigation request, return index.html
+        if (e.request.mode === 'navigate') {
+          return caches.match('./index.html');
+        }
+      });
     })
   );
 });
