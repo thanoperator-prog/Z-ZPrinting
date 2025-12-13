@@ -1,21 +1,30 @@
-const CACHE_NAME = 'zz-printing-v7';
+const CACHE_NAME = 'zz-printing-v8';
 
-// Add the external libraries you use to the cache list
-// so the app works even if offline
-const ASSETS = [
+// Critical resources. The SW will fail to install if any of these are missing.
+// This ensures the app doesn't install in a broken state.
+const CORE_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './icon-512.png',
   'https://cdn.tailwindcss.com',
   'https://unpkg.com/lucide@latest'
+];
+
+// Optional resources (like icons). We try to cache them, but if they fail
+// (e.g., file missing), we still allow the app to install.
+const OPTIONAL_ASSETS = [
+  './icon-512.png'
 ];
 
 // Install Event: Caches the basic resources
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
+      // Attempt to cache optional assets (don't stop install if they fail)
+      cache.addAll(OPTIONAL_ASSETS).catch(console.warn);
+      
+      // Must cache core assets for offline to work
+      return cache.addAll(CORE_ASSETS);
     }).then(() => self.skipWaiting())
   );
 });
@@ -43,7 +52,9 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
-        .catch(() => caches.match('./index.html'))
+        .catch(() => {
+          return caches.match('./index.html');
+        })
     );
     return;
   }
@@ -52,9 +63,9 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       return cachedResponse || fetch(event.request).then((response) => {
-        // Don't cache bad responses
+        // Check if we received a valid response
         if (!response || response.status !== 200 || response.type !== 'basic' && response.type !== 'cors') {
-          return response;
+           return response;
         }
 
         // Clone and cache the new resource
