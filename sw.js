@@ -1,16 +1,17 @@
-const CACHE_NAME = 'motor-pms-v3';
+const CACHE_NAME = 'motor-pms-v4';
 const ASSETS = [
   './',
   './index.html',
   './icon-512.png',
-  'https://cdn.tailwindcss.com',
-  'https://unpkg.com/react@18/umd/react.production.min.js',
-  'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
-  'https://unpkg.com/@babel/standalone/babel.min.js',
-  'https://unpkg.com/lucide@latest',
-  'https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js',
-  'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js',
-  'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js'
+  // Use Request objects with 'cors' mode to prevent opaque response issues with <script crossorigin>
+  new Request('https://cdn.tailwindcss.com', { mode: 'cors' }),
+  new Request('https://unpkg.com/react@18/umd/react.production.min.js', { mode: 'cors' }),
+  new Request('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js', { mode: 'cors' }),
+  new Request('https://unpkg.com/@babel/standalone/babel.min.js', { mode: 'cors' }),
+  new Request('https://unpkg.com/lucide@latest', { mode: 'cors' }),
+  new Request('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js', { mode: 'cors' }),
+  new Request('https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js', { mode: 'cors' }),
+  new Request('https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js', { mode: 'cors' })
 ];
 
 // Install Event
@@ -21,6 +22,8 @@ self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS);
+    }).catch(err => {
+      console.error('SW Install Failed! Check if all assets (like icon-512.png) exist.', err);
     })
   );
 });
