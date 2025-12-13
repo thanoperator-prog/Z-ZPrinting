@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zz-printing-v1';
+const CACHE_NAME = 'zz-printing-v2';
 
 // Add the external libraries you use to the cache list
 // so the app works even if offline
