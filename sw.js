@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zz-printing-v9';
+const CACHE_NAME = 'zz-printing-v14';
 
 // Critical resources. The SW will fail to install if any of these are missing.
 // We now use a SPECIFIC version of Lucide to ensure offline caching works perfectly.
@@ -7,7 +7,9 @@ const CORE_ASSETS = [
   './index.html',
   './manifest.json',
   'https://cdn.tailwindcss.com',
-  'https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js'
+  'https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js'
 ];
 
 // Optional resources (like icons). We try to cache them, but if they fail
