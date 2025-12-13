@@ -2,955 +2,649 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Printing Business</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Motor PMS - Maintenance Tracker</title>
     
-    <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#0f172a">
+    <!-- PWA SETTINGS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="MotoPMS">
+    <meta name="theme-color" content="#f9fafb">
     
-    <!-- Favicon & App Icon (Browser Tab) -->
-    <link rel="icon" type="image/png" sizes="32x32" href="icon-512.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="icon-512.png">
-    <link rel="shortcut icon" href="icon-512.png">
-    <link rel="apple-touch-icon" href="icon-512.png">
+    <!-- EMBEDDED MANIFEST -->
+    <link rel="manifest" href='data:application/json;charset=utf-8,%7B%22name%22%3A%22MotoPMS%22%2C%22short_name%22%3A%22MotoPMS%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23ffffff%22%2C%22theme_color%22%3A%22%232563eb%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22.%2Ficon-512.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D'>
 
-    <!-- Tailwind CSS -->
+    <!-- ICONS -->
+    <link rel="icon" type="image/png" href="./icon-512.png">
+    <link rel="apple-touch-icon" href="./icon-512.png">
+
+    <!-- EXTERNAL LIBS (Tailwind, React, Babel, Lucide, Firebase) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-
-    <!-- Configure Tailwind -->
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        slate: { 850: '#1e293b', 950: '#020617' }
-                    },
-                    screens: {
-                        'xs': '480px'
-                    }
-                }
-            }
-        }
-    </script>
+    
+    <!-- Firebase Compat Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
     <style>
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        .dark ::-webkit-scrollbar-thumb { background: #475569; }
-        
-        /* Animations */
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        
-        .slide-up { animation: slideUp 0.3s ease-out; }
-        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-        .slide-in-right { animation: slideInRight 0.3s ease-out; }
-        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
-
-        /* Mobile Optimizations & Highlight Removal */
-        body { -webkit-tap-highlight-color: transparent; }
         * { -webkit-tap-highlight-color: transparent; outline: none; }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .pt-safe { padding-top: env(safe-area-inset-top); }
+        .custom-scrollbar::-webkit-scrollbar { display: none; }
+        .custom-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @media (min-width: 768px) { 
+            .custom-scrollbar::-webkit-scrollbar { display: block; width: 6px; } 
+            .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; } 
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideInRight { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .animate-in { animation-fill-mode: forwards; }
+        .fade-in { animation-name: fadeIn; }
+        .slide-in-from-right { animation-name: slideInRight; }
+        .duration-300 { animation-duration: 300ms; }
+        .zoom-in-95 { animation: zoomIn 0.2s ease-out; }
+        @keyframes zoomIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-300 select-none">
+<body class="bg-gray-50 text-gray-900 font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
+    <div id="root"></div>
 
-    <div id="app" class="flex h-screen overflow-hidden">
-        <!-- App Content Injected Here -->
-    </div>
-
-    <!-- Toast & Modal Containers -->
-    <div id="toast-container" class="fixed top-6 right-6 z-[100] flex flex-col gap-2 pointer-events-none"></div>
-    <div id="modal-container"></div>
-
-<script>
-    /**
-     * Z&Z Printing App - Responsive & PWA Ready
-     */
-
-    // --- SERVICE WORKER REGISTRATION (For PWA) ---
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('SW registered:', reg))
-                .catch(err => console.log('SW failed:', err));
-        });
-    }
-
-    // --- STATE MANAGEMENT ---
-    const DB_VERSION = 'v5';
-    
-    const state = {
-        activeTab: 'dashboard',
-        isMobileMenuOpen: false,
-        materials: JSON.parse(localStorage.getItem(`zz_materials_${DB_VERSION}`)) || [],
-        products: JSON.parse(localStorage.getItem(`zz_products_${DB_VERSION}`)) || [],
-        sales: JSON.parse(localStorage.getItem(`zz_sales_${DB_VERSION}`)) || [],
-        darkMode: localStorage.getItem('zz_darkMode') === 'true',
-        themeColor: localStorage.getItem('zz_themeColor') || 'cyan',
-        appName: localStorage.getItem('zz_appName') || 'Printing Business',
-        appSubtitle: localStorage.getItem('zz_appSubtitle') || 'PWA Edition',
-        
-        // Dashboard
-        dashboardViewMode: 'all',
-        dashboardDateRange: { start: '', end: '' },
-
-        // POS
-        cart: [],
-        posSearch: '',
-        posCategory: 'All',
-        isMobileCartOpen: false, // New for Mobile POS
-
-        // Inventory
-        isInvAdding: false,
-        editingId: null,
-        newItem: { name: '', category: 'Xerox', cost: '', price: '', stock: '', recipe: [] },
-
-        // Materials
-        isMatAdding: false,
-        editingMaterialId: null,
-        tempMaterial: { name: '', unit: '', stock: '', costPerUnit: '' },
-        newMaterial: { name: '', unit: 'Sheet', stock: '', costPerUnit: '' },
-
-        // History
-        historyDateFilter: ''
-    };
-
-    // --- PERSISTENCE & UTILS ---
-    function saveState() {
-        localStorage.setItem(`zz_materials_${DB_VERSION}`, JSON.stringify(state.materials));
-        localStorage.setItem(`zz_products_${DB_VERSION}`, JSON.stringify(state.products));
-        localStorage.setItem(`zz_sales_${DB_VERSION}`, JSON.stringify(state.sales));
-        localStorage.setItem('zz_darkMode', state.darkMode);
-        localStorage.setItem('zz_themeColor', state.themeColor);
-        localStorage.setItem('zz_appName', state.appName);
-        localStorage.setItem('zz_appSubtitle', state.appSubtitle);
-        
-        if (state.darkMode) document.documentElement.classList.add('dark');
-        else document.documentElement.classList.remove('dark');
-
-        renderApp();
-    }
-
-    function formatPHP(amount) {
-        return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
-    }
-
-    function formatDate(dateString) {
-        return new Date(dateString).toLocaleString('en-PH', {
-            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
-    }
-
-    function getPHDateString(dateInput) {
-        const date = dateInput ? new Date(dateInput) : new Date();
-        return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-    }
-
-    function showToast(msg) {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = "bg-slate-800 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-xl shadow-xl flex items-center gap-3 slide-up pointer-events-auto border border-slate-700 dark:border-slate-200";
-        toast.innerHTML = `<i data-lucide="check-circle-2" width="20"></i> <span class="font-bold text-sm">${msg}</span>`;
-        container.appendChild(toast);
-        lucide.createIcons();
-        setTimeout(() => toast.remove(), 3000);
-    }
-
-    // --- ACTIONS ---
-    window.setTab = (tab) => {
-        state.activeTab = tab;
-        state.isMobileMenuOpen = false;
-        state.isMobileCartOpen = false;
-        renderApp();
-    };
-
-    window.toggleMobileMenu = () => {
-        state.isMobileMenuOpen = !state.isMobileMenuOpen;
-        if(state.isMobileMenuOpen) state.isMobileCartOpen = false; // Close cart if menu opens
-        renderApp();
-    };
-
-    window.toggleDarkMode = () => {
-        state.darkMode = !state.darkMode;
-        saveState();
-    };
-
-    window.setThemeColor = (color) => {
-        state.themeColor = color;
-        saveState();
-    };
-
-    // --- Material Actions ---
-    window.toggleAddMaterial = () => { 
-        state.isMatAdding = !state.isMatAdding; 
-        state.editingMaterialId = null;
-        state.tempMaterial = { name: '', unit: '', stock: '', costPerUnit: '' };
-        renderApp(); 
-    };
-    
-    window.editMaterial = (id) => {
-        const m = state.materials.find(m => m.id === id);
-        if(m) {
-            state.tempMaterial = { ...m };
-            state.editingMaterialId = id;
-            state.isMatAdding = true;
-            renderApp();
+    <script type="text/babel">
+        // --- Service Worker Registration for Offline Support ---
+        if ('serviceWorker' in navigator) {
+            // We use a blob to create an inline service worker
+            const swCode = `
+                const CACHE_NAME = 'motor-pms-v2';
+                const urlsToCache = [
+                    './',
+                    './index.html',
+                    './icon-512.png',
+                    'https://cdn.tailwindcss.com',
+                    'https://unpkg.com/react@18/umd/react.production.min.js',
+                    'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
+                    'https://unpkg.com/@babel/standalone/babel.min.js',
+                    'https://unpkg.com/lucide@latest',
+                    'https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js',
+                    'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js',
+                    'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js'
+                ];
+                self.addEventListener('install', event => {
+                    event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)).catch(err => console.log('Cache fail:', err)));
+                });
+                self.addEventListener('fetch', event => {
+                    event.respondWith(caches.match(event.request).then(response => response || fetch(event.request)));
+                });
+            `;
+            const blob = new Blob([swCode], { type: 'application/javascript' });
+            const swUrl = URL.createObjectURL(blob);
+            // Only register if not file:// protocol (browsers block SW on file://)
+            if (window.location.protocol.indexOf('http') === 0) {
+                navigator.serviceWorker.register(swUrl).catch(err => console.log('SW Fail:', err));
+            }
         }
-    };
 
-    window.saveMaterial = (e) => {
-        e.preventDefault();
-        const form = e.target;
-        const data = {
-            name: form.name.value,
-            unit: form.unit.value,
-            stock: parseInt(form.stock.value),
-            costPerUnit: parseFloat(form.costPerUnit?.value || 0)
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // --- Lucide Icon Shim ---
+        const createIcon = (name) => ({ size = 24, className, ...props }) => {
+            const iconData = lucide.icons[name];
+            if (!iconData) return null;
+            return React.createElement('svg', {
+                xmlns: "http://www.w3.org/2000/svg",
+                width: size,
+                height: size,
+                viewBox: "0 0 24 24",
+                fill: "none",
+                stroke: "currentColor",
+                strokeWidth: 2,
+                strokeLinecap: "round",
+                strokeLinejoin: "round",
+                className: className,
+                ...props
+            }, ...iconData.map(([tag, attrs]) => React.createElement(tag, attrs)));
         };
 
-        if (state.editingMaterialId) {
-            state.materials = state.materials.map(m => m.id === state.editingMaterialId ? { ...data, id: state.editingMaterialId } : m);
-            showToast("Material Updated");
-        } else {
-            state.materials.push({ id: Date.now(), ...data });
-            showToast("Material Added");
-        }
-        
-        state.isMatAdding = false;
-        state.editingMaterialId = null;
-        saveState();
-    };
-
-    window.deleteMaterial = (id) => openConfirmModal('Delete?', 'Cannot be undone.', () => {
-        state.materials = state.materials.filter(m => m.id !== id);
-        saveState();
-    });
-
-    // --- Product Actions ---
-    window.toggleAddProduct = () => {
-        state.isInvAdding = !state.isInvAdding;
-        state.editingId = null;
-        state.newItem = { name: '', category: 'Xerox', cost: '', price: '', stock: '', recipe: [] };
-        renderApp();
-    };
-    window.editProduct = (id) => {
-        const p = state.products.find(p => p.id === id);
-        if(p) {
-            state.newItem = JSON.parse(JSON.stringify(p));
-            if(!state.newItem.recipe) state.newItem.recipe = [];
-            state.editingId = id;
-            state.isInvAdding = true;
-            renderApp();
-        }
-    };
-    window.addRecipeIngredient = () => {
-        const matId = parseInt(document.getElementById('recipe-mat-select').value);
-        const qty = parseFloat(document.getElementById('recipe-qty-input').value);
-        const mat = state.materials.find(m => m.id === matId);
-        if (mat && qty) {
-            state.newItem.recipe.push({ materialId: matId, name: mat.name, qty: qty });
-            renderApp();
-        }
-    };
-    window.removeRecipeIngredient = (idx) => {
-        state.newItem.recipe.splice(idx, 1);
-        renderApp();
-    };
-    window.saveProduct = (e) => {
-        e.preventDefault();
-        const form = e.target;
-        const data = {
-            ...state.newItem,
-            name: form.name.value,
-            category: form.category.value,
-            cost: parseFloat(form.cost.value),
-            price: parseFloat(form.price.value),
-            stock: parseInt(form.stock.value) || 0
-        };
-        if (state.editingId) {
-            data.id = state.editingId;
-            state.products = state.products.map(p => p.id === state.editingId ? data : p);
-        } else {
-            data.id = Date.now();
-            state.products.push(data);
-        }
-        state.isInvAdding = false;
-        state.editingId = null;
-        saveState();
-        showToast("Product Saved");
-    };
-    window.deleteProduct = (id) => openConfirmModal('Delete Service?', 'Sure?', () => {
-        state.products = state.products.filter(p => p.id !== id);
-        saveState();
-    });
-
-    // --- POS Actions ---
-    window.addToCart = (e, id) => {
-        // Stop the click from bubbling up
-        if(e && e.stopPropagation) e.stopPropagation();
-        
-        const p = state.products.find(p => p.id === id);
-        if(!p) return;
-
-        // Stock check
-        let max = 9999;
-        if(p.recipe?.length) {
-            p.recipe.forEach(i => {
-                const m = state.materials.find(mat => mat.id === i.materialId);
-                max = Math.min(max, m ? Math.floor(m.stock / i.qty) : 0);
-            });
-        }
-
-        if(max === 0) return; // Cannot add if out of stock
-        
-        const existing = state.cart.find(c => c.id === id);
-        if((existing ? existing.qty : 0) < max) {
-            if(existing) existing.qty++;
-            else state.cart.push({ ...p, qty: 1 });
-            
-            // Force cart to stay closed
-            state.isMobileCartOpen = false;
-            
-            showToast(`Added ${p.name}`); 
-            renderApp();
-        } else {
-            alert("Insufficient materials!");
-        }
-    };
-    window.removeFromCart = (id) => {
-        state.cart = state.cart.filter(c => c.id !== id);
-        if(state.cart.length === 0) state.isMobileCartOpen = false;
-        renderApp();
-    };
-    window.toggleMobileCart = () => {
-        state.isMobileCartOpen = !state.isMobileCartOpen;
-        if(state.isMobileCartOpen) state.isMobileMenuOpen = false; // Close menu if cart opens
-        renderApp();
-    };
-    window.checkout = () => {
-        if(!state.cart.length) return;
-        const now = new Date().toISOString();
-        
-        // Create Sales
-        const sales = state.cart.map(c => ({
-            id: Math.random().toString(36).substr(2, 9),
-            productId: c.id,
-            productName: c.name,
-            quantity: c.qty,
-            total: c.price * c.qty,
-            profit: (c.price - c.cost) * c.qty,
-            recipe: c.recipe,
-            date: now
-        }));
-        state.sales = [...sales, ...state.sales];
-
-        // Deduct Inventory
-        state.cart.forEach(c => {
-            // Direct Stock
-            const pIdx = state.products.findIndex(p => p.id === c.id);
-            if(pIdx > -1) state.products[pIdx].stock = Math.max(0, state.products[pIdx].stock - c.qty);
-            
-            // Materials
-            c.recipe?.forEach(r => {
-                const mIdx = state.materials.findIndex(m => m.id === r.materialId);
-                if(mIdx > -1) state.materials[mIdx].stock = Math.max(0, state.materials[mIdx].stock - (r.qty * c.qty));
-            });
-        });
-
-        state.cart = [];
-        state.isMobileCartOpen = false;
-        saveState();
-        showToast("Sale Completed!");
-    };
-
-    // --- General Actions ---
-    window.deleteSale = (id) => openConfirmModal('Refund?', 'Restores stock.', () => {
-        const s = state.sales.find(x => x.id === id);
-        if(!s) return;
-        
-        // Restore
-        const p = state.products.find(p => p.id === s.productId);
-        if(p) p.stock += s.quantity;
-        
-        const recipe = s.recipe || (p ? p.recipe : []);
-        recipe?.forEach(r => {
-            const m = state.materials.find(mat => mat.id === r.materialId);
-            if(m) m.stock += (r.qty * s.quantity);
-        });
-
-        state.sales = state.sales.filter(x => x.id !== id);
-        saveState();
-    });
-
-    window.setDashboardView = (m) => { state.dashboardViewMode = m; renderApp(); };
-    window.setDashboardDate = (k, v) => { state.dashboardDateRange[k] = v; renderApp(); };
-
-    // Data Management
-    window.backupData = () => {
-        const blob = new Blob([JSON.stringify({ 
-            materials: state.materials, products: state.products, sales: state.sales, version: DB_VERSION 
-        }, null, 2)], { type: 'application/json' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `zz-backup-${getPHDateString()}.json`;
-        link.click();
-    };
-    window.triggerRestore = () => document.getElementById('restore-input').click();
-    window.handleRestoreFile = (e) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            try {
-                const d = JSON.parse(ev.target.result);
-                if(d.materials && d.products) {
-                    openConfirmModal('Restore?', 'Overwrites data.', () => {
-                        state.materials = d.materials; state.products = d.products; state.sales = d.sales || [];
-                        saveState(); showToast("Restored");
-                    });
-                }
-            } catch(er) { alert("Invalid File"); }
-        };
-        if(e.target.files[0]) reader.readAsText(e.target.files[0]);
-    };
-    window.resetApp = () => openConfirmModal('Reset?', 'Wipes everything.', () => {
-        state.materials = []; state.products = []; state.sales = [];
-        saveState();
-    });
-
-    // --- MODAL ---
-    function openConfirmModal(title, msg, onConfirm) {
-        document.getElementById('modal-container').innerHTML = `
-            <div class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm fade-in">
-                <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-700 slide-up">
-                    <h3 class="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">${title}</h3>
-                    <p class="text-slate-500 dark:text-slate-400 mb-6">${msg}</p>
-                    <div class="flex gap-3">
-                        <button onclick="document.getElementById('modal-container').innerHTML=''" class="flex-1 py-3 bg-slate-100 dark:bg-slate-700 rounded-xl font-bold dark:text-white">Cancel</button>
-                        <button id="modal-confirm-btn" class="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold shadow-lg shadow-red-500/30">Confirm</button>
-                    </div>
-                </div>
-            </div>`;
-        document.getElementById('modal-confirm-btn').onclick = () => { onConfirm(); document.getElementById('modal-container').innerHTML=''; };
-    }
-
-    // --- RENDERERS ---
-    function getThemeClasses(type) {
-        const c = state.themeColor;
-        const map = {
-            'btn-primary': `bg-${c}-600 active:bg-${c}-700 text-white shadow-lg shadow-${c}-500/30`,
-            'icon-bg': `bg-${c}-100 dark:bg-${c}-900/30 text-${c}-600 dark:text-${c}-400`,
-            'active-nav': `bg-${c}-600 text-white shadow-lg shadow-${c}-600/20`,
-            'text-accent': `text-${c}-600 dark:text-${c}-400`
-        };
-        return map[type] || '';
-    }
-
-    function renderSidebar() {
-        // Removed 'settings' from this list to handle it separately
-        const items = [
-            { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
-            { id: 'pos', label: 'POS', icon: 'shopping-cart' },
-            { id: 'products', label: 'Products', icon: 'package' }, // Renamed from Inventory for brevity
-            { id: 'materials', label: 'Materials', icon: 'layers' },
-            { id: 'history', label: 'History', icon: 'history' }
+        const iconNames = [
+            'LayoutDashboard', 'Bike', 'Wrench', 'Plus', 'Calendar', 'ChevronRight', 
+            'AlertTriangle', 'CheckCircle2', 'History', 'Save', 'Trash2', 'Gauge', 
+            'MoreVertical', 'X', 'ClipboardCheck', 'ArrowRight', 'Settings', 'RotateCcw', 
+            'Droplet', 'Wind', 'Zap', 'Thermometer', 'Disc', 'CircleDot', 'Cog', 
+            'AlertCircle', 'Battery', 'Hammer', 'Search', 'Fuel', 'Eye', 'Bell', 
+            'Lightbulb', 'Power', 'Plug', 'RefreshCw', 'Shield', 'Flame', 'Snowflake', 
+            'Sun', 'Umbrella', 'Anchor', 'Box', 'Key', 'Camera', 'Upload', 'Download', 
+            'UploadCloud', 'FileJson', 'Trash', 'Eraser', 'Pencil', 'Cloud', 'CloudOff'
         ];
 
-        return `
-            <!-- Mobile Overlay -->
-            <div onclick="toggleMobileMenu()" class="fixed inset-0 bg-slate-900/50 z-[60] md:hidden ${state.isMobileMenuOpen ? 'block' : 'hidden'} backdrop-blur-sm transition-opacity"></div>
+        const Icons = iconNames.reduce((acc, name) => {
+            acc[name] = createIcon(name);
+            return acc;
+        }, {});
+
+        const { 
+            LayoutDashboard, Bike, Wrench, Plus, Calendar, ChevronRight, AlertTriangle, 
+            CheckCircle2, History, Save, Trash2, Gauge, MoreVertical, X, ClipboardCheck, 
+            ArrowRight, Settings, RotateCcw, Droplet, Wind, Zap, Thermometer, Disc, 
+            CircleDot, Cog, AlertCircle, Battery, Hammer, Search, Fuel, Eye, Bell, 
+            Lightbulb, Power, Plug, RefreshCw, Shield, Flame, Snowflake, Sun, Umbrella, 
+            Anchor, Box, Key, Camera, Upload, Download, UploadCloud, FileJson, Trash, Eraser, Pencil, Cloud, CloudOff
+        } = Icons;
+
+        // --- Configuration & Constants ---
+        const ICON_MAP = {
+            'Droplet': Droplet, 'Cog': Cog, 'Wrench': Wrench, 'Wind': Wind, 'Thermometer': Thermometer,
+            'Disc': Disc, 'CircleDot': CircleDot, 'Zap': Zap, 'Battery': Battery, 'Hammer': Hammer,
+            'Search': Search, 'Fuel': Fuel, 'Eye': Eye, 'Bell': Bell, 'Lightbulb': Lightbulb,
+            'Power': Power, 'Plug': Plug, 'RefreshCw': RefreshCw, 'Shield': Shield, 'Flame': Flame,
+            'Snowflake': Snowflake, 'Sun': Sun, 'Umbrella': Umbrella, 'Anchor': Anchor, 'Box': Box,
+            'Key': Key, 'Bike': Bike
+        };
+
+        const MOTOR_TYPES = [
+            { id: 'scooter', name: 'Scooter', color: '#3B82F6', text: 'white' },
+            { id: 'bigbike', name: 'Big Bike', color: '#EF4444', text: 'white' },
+            { id: 'underbone', name: 'Underbone', color: '#10B981', text: 'white' },
+            { id: 'cruiser', name: 'Cruiser', color: '#8B5CF6', text: 'white' },
+            { id: 'offroad', name: 'Off-Road', color: '#F59E0B', text: 'white' },
+            { id: 'atv', name: 'ATV/Quad', color: '#6B7280', text: 'white' }
+        ];
+
+        const AppLogo = ({ className }) => (
+            <img src="./icon-512.png" alt="Logo" className={`${className} object-contain rounded-full`} onError={(e) => { e.target.style.display = 'none'; if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'; }} />
+        );
+        const FallbackLogo = ({ className }) => ( <div className={`${className} hidden items-center justify-center bg-blue-100 rounded-full text-blue-600`}><Bike size={24} /></div> );
+
+        const MotorTypeIcon = ({ typeId, className }) => {
+            const renderIcon = () => {
+                switch (typeId) {
+                case 'scooter': return (<g stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="16" r="3" /><circle cx="19" cy="16" r="3" /><path d="M8 16h3l1-5h-3l-2 5" /><path d="M12 11h4l1 5" /><path d="M9 11l-1-6h-3" /></g>);
+                case 'bigbike': return (<g stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="16" r="3" /><circle cx="19" cy="16" r="3" /><path d="M8 16l4-5h5l2 5" /><path d="M12 11l-2-4h-4" /><path d="M14 11h3" /></g>);
+                case 'cruiser': return (<g stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="16" r="3" /><circle cx="19" cy="16" r="3" /><path d="M8 16l3-3h6l2 3" /><path d="M11 13l-1-7h-4" /></g>);
+                default: return (<g stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="16" r="3" /><circle cx="19" cy="16" r="3" /><path d="M8 16l2-5h5l2 5" /><path d="M10 11l-1-5h-3" /></g>);
+                }
+            };
+            return <svg viewBox="0 0 24 24" className={className} xmlns="http://www.w3.org/2000/svg">{renderIcon()}</svg>;
+        };
+
+        const getFreshDefaults = () => [
+            { id: 'eng_oil', type: 'Engine Oil', interval: 1500, description: 'Change engine oil', icon: 'Droplet' },
+            { id: 'gear_oil', type: 'Gear Oil', interval: 3000, description: 'Change gear oil', icon: 'Cog' },
+            { id: 'cvt_clean', type: 'CVT Cleaning', interval: 5000, description: 'Clean CVT components', icon: 'Wrench' },
+            { id: 'air_filter', type: 'Air Filter', interval: 12000, description: 'Replace air filter', icon: 'Wind' },
+            { id: 'coolant', type: 'Coolant', interval: 12000, description: 'Flush coolant', icon: 'Thermometer' },
+            { id: 'brake_fluid', type: 'Brake Fluid', interval: 12000, description: 'Replace fluid', icon: 'Droplet' },
+            { id: 'belt', type: 'Drive Belt', interval: 24000, description: 'Replace belt', icon: 'Disc' },
+            { id: 'tires', type: 'Tires', interval: 20000, description: 'Check tires', icon: 'CircleDot' },
+            { id: 'spark_plug', type: 'Spark Plug', interval: 10000, description: 'Check spark plug', icon: 'Zap' }
+        ];
+        const DEFAULT_SCHEDULE = getFreshDefaults();
+
+        const getDueMaintenance = (motor, logs, schedule) => {
+            const dueList = [];
+            schedule.forEach(item => {
+                const lastService = logs.filter(l => l.motorId === motor.id && l.type === item.type).sort((a, b) => {
+                    const dateA = new Date(a.date); const dateB = new Date(b.date);
+                    if (dateB - dateA !== 0) return dateB - dateA;
+                    return b.odometer - a.odometer;
+                })[0];
+                const lastOdometer = lastService ? lastService.odometer : 0;
+                const distanceRun = motor.odometer - lastOdometer;
+                if (distanceRun >= item.interval) {
+                dueList.push({ ...item, lastOdometer, distanceRun, overdueBy: distanceRun - item.interval });
+                }
+            });
+            return dueList.sort((a, b) => b.overdueBy - a.overdueBy);
+        };
+
+        const Toast = ({ message, type, onClose }) => {
+            useEffect(() => { const timer = setTimeout(onClose, 3000); return () => clearTimeout(timer); }, [onClose]);
+            return (
+                <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] px-4 py-3 rounded-lg shadow-xl text-white text-sm font-bold flex items-center space-x-2 animate-in slide-in-from-top-4 fade-in duration-300 ${type === 'error' ? 'bg-red-500' : 'bg-gray-800'}`}>
+                <span>{message}</span>
+                <button onClick={onClose} className="ml-2 hover:opacity-75"><X size={14}/></button>
+                </div>
+            );
+        };
+
+        const Navbar = ({ activeTab, setActiveTab }) => {
+            const navItems = [
+                { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+                { id: 'motors', icon: Bike, label: 'Motors' },
+                { id: 'maintenance', icon: Wrench, label: 'Maintenance' },
+            ];
+            return (
+                <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 pb-safe z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                <div className="flex justify-around items-center h-16 max-w-5xl mx-auto px-4">
+                    {navItems.map((item) => (
+                    <button key={item.id} onClick={() => setActiveTab(item.id)} className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors active:scale-95 duration-100 ${activeTab === item.id ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
+                        <item.icon size={24} strokeWidth={activeTab === item.id ? 2.5 : 2} />
+                        <span className="text-xs font-medium">{item.label}</span>
+                    </button>
+                    ))}
+                </div>
+                </nav>
+            );
+        };
+
+        // --- CLOUD SYNC SETTINGS ---
+        const SettingsView = ({ schedule, onUpdateSchedule, onClose, onRestore, onFactoryReset, onClearLogs, showToast }) => {
+            const [localSchedule, setLocalSchedule] = useState(schedule);
+            const [isAdding, setIsAdding] = useState(false);
+            const [activeConfirm, setActiveConfirm] = useState(null); 
+            const [deletingItemId, setDeletingItemId] = useState(null);
+            const [restoreData, setRestoreData] = useState(null); 
+            const [newService, setNewService] = useState({ type: '', interval: '', description: '', icon: 'Wrench' });
+            const [resetKey, setResetKey] = useState(0); 
+            const fileInputRef = useRef(null);
             
-            <!-- Sidebar -->
-            <aside class="fixed md:static inset-y-0 left-0 z-[70] w-72 bg-slate-900 dark:bg-slate-950 text-white transform transition-transform duration-300 ${state.isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 flex flex-col shadow-2xl md:shadow-none">
-                <div class="p-6 flex items-center gap-4 border-b border-slate-800">
-                    <div class="w-10 h-10 rounded-xl shadow-lg bg-white flex items-center justify-center overflow-hidden">
-                         <img src="icon-512.png" class="w-full h-full object-cover" alt="Logo">
+            // Cloud Config State
+            const [firebaseConfig, setFirebaseConfig] = useState(() => {
+                return localStorage.getItem('motor_pms_firebase_config') || '';
+            });
+            const [showCloudConfig, setShowCloudConfig] = useState(false);
+
+            const handleSave = () => { onUpdateSchedule(localSchedule); onClose(); };
+            const handleResetRequest = () => setActiveConfirm('reset_defaults');
+            const handleClearLogsRequest = () => setActiveConfirm('clear_logs');
+            const handleFactoryResetRequest = () => setActiveConfirm('factory_reset');
+            const handleDeleteItemRequest = (id) => { setDeletingItemId(id); setActiveConfirm('delete_item'); };
+
+            const confirmResetDefaults = () => { setLocalSchedule(getFreshDefaults()); setResetKey(prev => prev + 1); setActiveConfirm(null); };
+            const confirmDeleteItem = () => { setLocalSchedule(prev => prev.filter(item => item.id !== deletingItemId)); setDeletingItemId(null); setActiveConfirm(null); };
+            const confirmClearLogs = () => { onClearLogs(); setActiveConfirm(null); onClose(); };
+            const confirmFactoryReset = () => { onFactoryReset(); setActiveConfirm(null); onClose(); };
+            
+            const handleAddService = (e) => {
+                e.preventDefault();
+                if (!newService.type || !newService.interval) return;
+                const newItem = { id: `custom_${Date.now()}`, type: newService.type, interval: Number(newService.interval), description: newService.description || 'Custom service', icon: newService.icon };
+                setLocalSchedule([...localSchedule, newItem]);
+                setIsAdding(false);
+                setNewService({ type: '', interval: '', description: '', icon: 'Wrench' });
+            };
+
+            const handleSaveCloudConfig = () => {
+                try {
+                    if (firebaseConfig.trim()) {
+                        JSON.parse(firebaseConfig); // Validate JSON
+                        localStorage.setItem('motor_pms_firebase_config', firebaseConfig);
+                        showToast("Cloud config saved! Restart app to apply.", "success");
+                    } else {
+                        localStorage.removeItem('motor_pms_firebase_config');
+                        showToast("Cloud config removed.", "info");
+                    }
+                    setShowCloudConfig(false);
+                } catch (e) {
+                    showToast("Invalid JSON Config", "error");
+                }
+            };
+
+            const handleBackup = () => {
+                const data = { motors: JSON.parse(localStorage.getItem('motor_pms_motors') || '[]'), logs: JSON.parse(localStorage.getItem('motor_pms_logs') || '[]'), schedule: JSON.parse(localStorage.getItem('motor_pms_schedule') || '[]'), exportedAt: new Date().toISOString() };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `motor_pms_backup_${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            };
+
+            const handleRestoreFile = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (data.motors && Array.isArray(data.motors) && data.logs && Array.isArray(data.logs)) { setRestoreData(data); setActiveConfirm('restore'); } else { showToast("Invalid backup file format.", "error"); }
+                } catch (err) { showToast("Error reading file.", "error"); }
+                };
+                reader.readAsText(file); e.target.value = null; 
+            };
+
+            const confirmRestore = () => { if (restoreData) { onRestore(restoreData); setRestoreData(null); setActiveConfirm(null); onClose(); } };
+
+            return (
+                <div className="fixed inset-0 z-[60] bg-white/95 backdrop-blur-sm flex flex-col animate-in slide-in-from-right duration-300 sm:items-center sm:justify-center p-0 sm:p-4">
+                <div className="bg-white w-full max-w-2xl h-full sm:h-auto sm:max-h-[90vh] sm:rounded-2xl sm:shadow-2xl flex flex-col border-gray-100 sm:border">
+                    <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 pt-safe sm:rounded-t-2xl">
+                    <h2 className="text-lg font-bold text-gray-800">Configuration</h2>
+                    <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-800 active:scale-95"><X size={24} /></button>
                     </div>
-                    <div>
-                        <h1 class="font-bold text-xl tracking-tight leading-none mb-1">${state.appName}</h1>
-                        <p class="text-xs text-slate-400">${state.appSubtitle}</p>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+                    
+                    {/* Cloud Sync Section */}
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+                        <h3 className="text-sm font-bold text-indigo-800 mb-3 flex items-center">
+                            <Cloud size={16} className="mr-2"/> Cloud Sync
+                        </h3>
+                        {!showCloudConfig ? (
+                            <button onClick={() => setShowCloudConfig(true)} className="w-full bg-white border border-indigo-200 text-indigo-600 font-bold py-2 rounded-lg text-sm hover:bg-indigo-50 transition-colors">
+                                {firebaseConfig ? "Configure / Update Cloud" : "Enable Cloud Sync"}
+                            </button>
+                        ) : (
+                            <div className="space-y-3 animate-in fade-in">
+                                <p className="text-xs text-indigo-600">Paste your Firebase Project Config (JSON) here to sync data across devices.</p>
+                                <textarea 
+                                    className="w-full p-2 text-xs font-mono border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none h-32" 
+                                    placeholder='{"apiKey": "...", "authDomain": "...", "projectId": "..."}'
+                                    value={firebaseConfig}
+                                    onChange={e => setFirebaseConfig(e.target.value)}
+                                />
+                                <div className="flex space-x-2">
+                                    <button onClick={handleSaveCloudConfig} className="flex-1 bg-indigo-600 text-white font-bold py-2 rounded-lg text-sm">Save</button>
+                                    <button onClick={() => setShowCloudConfig(false)} className="px-4 bg-gray-200 text-gray-600 font-bold py-2 rounded-lg text-sm">Cancel</button>
+                                </div>
+                            </div>
+                        )}
                     </div>
+
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                        <h3 className="text-sm font-bold text-blue-800 mb-3 flex items-center"><FileJson size={16} className="mr-2"/> Data Management</h3>
+                        <div className="grid grid-cols-2 gap-3">
+                        <button onClick={handleBackup} className="flex flex-col items-center justify-center bg-white p-3 rounded-lg border border-blue-200 shadow-sm hover:bg-blue-50 transition-colors active:scale-95"><Download size={24} className="text-blue-600 mb-1" /><span className="text-xs font-bold text-gray-700">Backup Data</span></button>
+                        <button onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center bg-white p-3 rounded-lg border border-blue-200 shadow-sm hover:bg-blue-50 transition-colors active:scale-95"><UploadCloud size={24} className="text-emerald-600 mb-1" /><span className="text-xs font-bold text-gray-700">Restore Data</span><input type="file" accept=".json" ref={fileInputRef} onChange={handleRestoreFile} className="hidden" /></button>
+                        </div>
+                    </div>
+
+                    <hr className="border-gray-100" />
+
+                    {!isAdding ? (
+                        <button onClick={() => setIsAdding(true)} className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 font-bold flex items-center justify-center hover:bg-gray-50 hover:border-gray-400 transition-colors active:scale-[0.98]"><Plus size={20} className="mr-2" /> Add Custom Service Card</button>
+                    ) : (
+                        <div className="bg-white border border-blue-200 rounded-xl p-4 shadow-lg ring-4 ring-blue-50 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-gray-900">New Service</h3><button onClick={() => setIsAdding(false)} className="text-gray-400 hover:text-red-500 active:scale-90"><X size={18}/></button></div>
+                        <form onSubmit={handleAddService} className="space-y-3">
+                            <div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-bold text-gray-500 uppercase">Service Name</label><input required className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Chain Lube" value={newService.type} onChange={e => setNewService({...newService, type: e.target.value})}/></div><div><label className="text-xs font-bold text-gray-500 uppercase">Interval (km)</label><input required type="number" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. 500" value={newService.interval} onChange={e => setNewService({...newService, interval: e.target.value})}/></div></div>
+                            <div><label className="text-xs font-bold text-gray-500 uppercase">Description (Optional)</label><input className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Short description" value={newService.description} onChange={e => setNewService({...newService, description: e.target.value})}/></div>
+                            <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 shadow-md shadow-blue-200 active:scale-[0.98] transition-all">Add Service</button>
+                        </form>
+                        </div>
+                    )}
+                    <div className="space-y-3" key={resetKey}><h3 className="text-sm font-bold text-gray-500 uppercase">Active Schedule</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-3">{localSchedule.map((item) => { const IconComp = ICON_MAP[item.icon] || Wrench; return ( <div key={item.id} className="flex items-center justify-between bg-white p-3 border border-gray-200 rounded-xl shadow-sm group"> <div className="flex items-center space-x-3 flex-1 overflow-hidden"> <div className="text-gray-400 bg-gray-50 p-2 rounded-lg"> <IconComp size={20} /> </div> <div className="min-w-0"> <p className="font-bold text-gray-800 truncate">{item.type}</p> <p className="text-xs text-gray-400 truncate">{item.description}</p> </div> </div> <div className="flex items-center space-x-2 ml-2"> <input type="number" value={item.interval} onChange={(e) => setLocalSchedule(prev => prev.map(i => i.id === item.id ? { ...i, interval: Number(e.target.value) } : i))} className="w-16 p-2 text-right font-mono font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm" /> <button onClick={() => handleDeleteItemRequest(item.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors active:scale-90"> <Trash2 size={16} /> </button> </div> </div> ); })}</div></div>
+                    <hr className="border-gray-100" />
+                    <div className="bg-red-50 border border-red-100 rounded-xl p-4"><h3 className="text-sm font-bold text-red-800 mb-3">Danger Zone</h3><button onClick={handleClearLogsRequest} className="w-full flex items-center justify-center bg-white border border-red-200 text-red-600 font-bold py-3 rounded-lg mb-3 hover:bg-red-50 transition-colors active:scale-95"><Eraser size={18} className="mr-2" /> Clear All Records</button><button onClick={handleFactoryResetRequest} className="w-full flex items-center justify-center bg-white border border-red-200 text-red-600 font-bold py-3 rounded-lg hover:bg-red-50 transition-colors active:scale-95"><Trash size={18} className="mr-2" /> Factory Reset App</button></div>
+                    </div>
+                    <div className="p-4 border-t border-gray-200 bg-gray-50 pb-safe space-y-3 sm:rounded-b-2xl"><button onClick={handleSave} className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-[0.98] transition-all">Save Changes</button><button onClick={handleResetRequest} className="w-full flex items-center justify-center text-gray-500 font-medium py-2 hover:text-red-500 transition-colors active:scale-[0.98]"><RotateCcw size={16} className="mr-2" />Reset to Defaults</button></div>
                 </div>
                 
-                <!-- Main Navigation (Scrollable) -->
-                <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
-                    ${items.map(i => `
-                        <button onclick="setTab('${i.id === 'products' ? 'inventory' : i.id}')" class="w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all font-medium ${state.activeTab === (i.id === 'products' ? 'inventory' : i.id) ? getThemeClasses('active-nav') : 'text-slate-400 hover:bg-slate-800 hover:text-white'}">
-                            <i data-lucide="${i.icon}" width="22"></i> ${i.label}
-                        </button>
-                    `).join('')}
-                </nav>
-
-                <!-- Settings Tab (Pinned to Bottom) -->
-                <div class="p-4 border-t border-slate-800 mt-auto">
-                    <button onclick="setTab('settings')" class="w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all font-medium ${state.activeTab === 'settings' ? getThemeClasses('active-nav') : 'text-slate-400 hover:bg-slate-800 hover:text-white'}">
-                        <i data-lucide="settings" width="22"></i> Settings
-                    </button>
-                </div>
-            </aside>
-        `;
-    }
-
-    function renderPOS() {
-        const cartTotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-        const cartCount = state.cart.reduce((sum, item) => sum + item.qty, 0);
-        
-        const filtered = state.products.filter(p => 
-            p.name.toLowerCase().includes(state.posSearch.toLowerCase()) && 
-            (state.posCategory === 'All' || p.category === state.posCategory)
-        );
-        const cats = ['All', ...new Set(state.products.map(p => p.category))];
-
-        return `
-            <div class="h-[calc(100vh-5rem)] md:h-[calc(100vh-2rem)] flex flex-col md:flex-row gap-6 relative">
-                <!-- Product Section -->
-                <div class="flex-1 flex flex-col min-h-0">
-                    <!-- Search Bar -->
-                    <div class="flex gap-3 mb-4">
-                        <div class="relative flex-1">
-                            <i data-lucide="search" class="absolute left-3 top-3.5 text-slate-400" width="20"></i>
-                            <input type="text" placeholder="Search..." oninput="state.posSearch = this.value; renderApp()" class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-${state.themeColor}-500" value="${state.posSearch}">
+                {activeConfirm && (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl border-2 border-gray-50">
+                        <div className="text-center mb-6">
+                        {activeConfirm === 'reset_defaults' && <><div className="flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 text-blue-500 mb-4 mx-auto"><RotateCcw size={24} /></div><h3 className="font-bold text-lg text-gray-900 mb-2">Reset Schedule?</h3><p className="text-gray-500 text-sm">Discard custom settings and load default list?</p></>}
+                        {activeConfirm === 'clear_logs' && <><div className="flex items-center justify-center h-12 w-12 rounded-full bg-red-100 text-red-500 mb-4 mx-auto"><Eraser size={24} /></div><h3 className="font-bold text-lg text-gray-900 mb-2">Clear History?</h3><p className="text-gray-500 text-sm">Delete ALL service logs?</p></>}
+                        {activeConfirm === 'factory_reset' && <><div className="flex items-center justify-center h-12 w-12 rounded-full bg-red-100 text-red-500 mb-4 mx-auto"><Trash size={24} /></div><h3 className="font-bold text-lg text-gray-900 mb-2">Factory Reset?</h3><p className="text-gray-500 text-sm">Delete EVERYTHING? All data will be wiped.</p></>}
+                        {activeConfirm === 'delete_item' && <><div className="flex items-center justify-center h-12 w-12 rounded-full bg-orange-100 text-orange-500 mb-4 mx-auto"><Trash size={24} /></div><h3 className="font-bold text-lg text-gray-900 mb-2">Remove Item?</h3></>}
+                        {activeConfirm === 'restore' && <><div className="flex items-center justify-center h-12 w-12 rounded-full bg-emerald-100 text-emerald-500 mb-4 mx-auto"><UploadCloud size={24} /></div><h3 className="font-bold text-lg text-gray-900 mb-2">Confirm Restore</h3><p className="text-gray-500 text-sm">Overwrite data with backup?</p></>}
                         </div>
-                        <select onchange="state.posCategory = this.value; renderApp()" class="w-1/3 md:w-auto p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-${state.themeColor}-500 bg-white">
-                            ${cats.map(c => `<option ${state.posCategory === c ? 'selected' : ''}>${c}</option>`).join('')}
-                        </select>
+                        <div className="flex space-x-3"><button onClick={() => setActiveConfirm(null)} className="flex-1 py-3 font-bold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors active:scale-95">Cancel</button><button onClick={() => { if (activeConfirm === 'reset_defaults') confirmResetDefaults(); else if (activeConfirm === 'clear_logs') confirmClearLogs(); else if (activeConfirm === 'factory_reset') confirmFactoryReset(); else if (activeConfirm === 'delete_item') confirmDeleteItem(); else if (activeConfirm === 'restore') confirmRestore(); }} className={`flex-1 py-3 font-bold text-white rounded-xl shadow-lg transition-colors active:scale-95 ${activeConfirm === 'reset_defaults' ? 'bg-blue-600' : activeConfirm === 'restore' ? 'bg-emerald-600' : 'bg-red-500'}`}>Confirm</button></div>
                     </div>
-
-                    <!-- Grid -->
-                    <div class="flex-1 overflow-y-auto pb-24 md:pb-0 pr-1">
-                        <!-- Reverted mobile to 2 columns. Tablet (up to lg) stays 2 columns to match. -->
-                        <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
-                            ${filtered.map(p => {
-                                let available = true, max = 999;
-                                
-                                // Calculate stock and generate recipe HTML list
-                                const recipeHtml = p.recipe?.map(r => {
-                                    const m = state.materials.find(mat => mat.id === r.materialId);
-                                    
-                                    // If material was deleted from database
-                                    if(!m) { 
-                                        available = false; 
-                                        return `<div class="flex justify-between items-center text-[10px] text-red-500 font-bold"><span>${r.name}</span><span>Missing Data</span></div>`; 
-                                    }
-                                    
-                                    // Calculate how many we can make based on this specific material
-                                    const canMake = Math.floor(m.stock / r.qty);
-                                    max = Math.min(max, canMake);
-                                    
-                                    // Determine display status
-                                    const isEnough = m.stock >= r.qty;
-                                    let colorClass = 'text-slate-400 dark:text-slate-500';
-                                    let statusText = `${r.qty} ${m.unit}`;
-
-                                    if (!isEnough) {
-                                        colorClass = 'text-red-500 font-bold';
-                                        statusText = `0/${r.qty}`; // Show 0 available vs required
-                                        available = false; // Mark overall product as unavailable
-                                    } else if (m.stock < 10) {
-                                        colorClass = 'text-orange-500 font-medium';
-                                    } else if (canMake < 10) {
-                                         // If we have stock but it's getting tight relative to recipe
-                                         colorClass = 'text-orange-500 font-medium';
-                                    }
-                                    
-                                    return `<div class="flex justify-between items-center text-[10px] ${colorClass}">
-                                        <span class="truncate pr-1 max-w-[70%]">${m.name}</span>
-                                        <span>${statusText}</span>
-                                    </div>`;
-                                }).join('') || ''; // Default to empty string if no recipe
-
-                                // Final check if logic forced available to false (e.g. max calculation resulted in 0)
-                                if (max === 0) available = false;
-                                
-                                const isOutOfStock = !available;
-                                const isLowStock = available && max < 10;
-
-                                return `
-                                <div onclick="${available ? `addToCart(event, ${p.id})` : ''}" class="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden transition-all active:scale-95 touch-manipulation flex flex-col h-full ${!available ? 'opacity-70 bg-slate-50 dark:bg-slate-900 cursor-not-allowed' : `hover:border-${state.themeColor}-500`}">
-                                    ${isLowStock ? '<div class="absolute top-0 right-0 bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-bl-lg font-bold z-10">Low</div>' : ''}
-                                    ${!available ? '<div class="absolute top-0 right-0 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-bl-lg font-bold z-10">No Stock</div>' : ''}
-                                    
-                                    <div class="flex justify-between items-start mb-1">
-                                        <span class="text-[10px] font-bold text-slate-400 uppercase bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">${p.category.substr(0,8)}</span>
-                                        <span class="font-bold text-${state.themeColor}-600 dark:text-${state.themeColor}-400">${formatPHP(p.price)}</span>
-                                    </div>
-                                    
-                                    <h4 class="font-bold text-slate-800 dark:text-slate-200 text-sm leading-tight mb-2 line-clamp-2">${p.name}</h4>
-                                    
-                                    <!-- Materials List -->
-                                    <div class="mt-auto pt-2 border-t border-slate-100 dark:border-slate-700 space-y-0.5 min-h-[1.5rem]">
-                                        ${recipeHtml}
-                                    </div>
-                                </div>`;
-                            }).join('')}
-                        </div>
                     </div>
+                )}
                 </div>
+            );
+        };
 
-                <!-- Desktop Cart (Sidebar) -->
-                <div class="hidden md:flex w-80 lg:w-96 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 flex-col overflow-hidden">
-                    ${renderCartContent(cartTotal, cartCount)}
+        const DashboardView = ({ motors, logs, schedule, setActiveTab, onOpenSettings, onNavigateToMaintenance }) => {
+            const recentLogs = useMemo(() => [...logs].sort((a, b) => new Date(b.date) - new Date(a.date) || b.odometer - a.odometer || b.id - a.id).slice(0, 5), [logs]);
+            const alerts = motors.map(motor => {
+                const dueItems = getDueMaintenance(motor, logs, schedule);
+                if (dueItems.length > 0) return { type: 'danger', msg: `${dueItems[0].type} due for ${motor.name}`, sub: `Overdue by ${dueItems[0].overdueBy.toLocaleString()} km`, motor };
+                return null;
+            }).filter(Boolean);
+
+            return (
+                <div className="space-y-6 pb-24 animate-in fade-in duration-500">
+                <header className="flex justify-between items-center"><div className="flex items-center gap-2"><div className="relative"><AppLogo className="w-8 h-8" /><FallbackLogo className="w-8 h-8" /></div><div><h1 className="text-2xl font-bold text-gray-900 leading-none">Motor PMS</h1><p className="text-gray-500 text-xs font-medium">Maintenance Tracker</p></div></div><button onClick={onOpenSettings} className="h-10 w-10 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-600 hover:text-blue-600 shadow-sm transition-colors active:scale-90"><Settings size={20} /></button></header>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 text-blue-600 mb-2"><Bike size={20} /><span className="font-semibold">My Fleet</span></div><p className="text-2xl font-bold text-gray-800">{motors.length}</p><p className="text-xs text-gray-500">Active Motorcycles</p></div>
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 text-emerald-600 mb-2"><Wrench size={20} /><span className="font-semibold">Services</span></div><p className="text-2xl font-bold text-gray-800">{logs.length}</p><p className="text-xs text-gray-500">Total Records</p></div>
+                    <div className="hidden md:block bg-white p-4 rounded-xl shadow-sm border border-gray-100 opacity-50"><div className="flex items-center space-x-2 text-gray-400 mb-2"><AlertTriangle size={20} /><span className="font-semibold">Alerts</span></div><p className="text-2xl font-bold text-gray-800">{alerts.length}</p><p className="text-xs text-gray-500">Active Warnings</p></div>
+                    <div className="hidden md:block bg-white p-4 rounded-xl shadow-sm border border-gray-100 opacity-50"><div className="flex items-center space-x-2 text-gray-400 mb-2"><Gauge size={20} /><span className="font-semibold">Total Km</span></div><p className="text-2xl font-bold text-gray-800">{motors.reduce((acc, m) => acc + m.odometer, 0).toLocaleString()}</p><p className="text-xs text-gray-500">Fleet Mileage</p></div>
                 </div>
-
-                <!-- Mobile Cart Modal -->
-                <!-- Added 'invisible' and 'z-[-1]' when closed to prevent ghost clicks -->
-                <div class="md:hidden fixed inset-0 flex flex-col justify-end pointer-events-none transition-all duration-300 ${state.isMobileCartOpen ? 'z-[60] visible' : 'z-[-1] invisible'}">
-                    <!-- Overlay -->
-                    <div onclick="toggleMobileCart()" class="absolute inset-0 bg-black/60 transition-opacity pointer-events-auto ${state.isMobileCartOpen ? 'opacity-100' : 'opacity-0'}"></div>
-                    
-                    <!-- Bottom Sheet -->
-                    <div class="bg-white dark:bg-slate-800 w-full rounded-t-2xl shadow-2xl transform transition-transform duration-300 pointer-events-auto flex flex-col max-h-[85vh] ${state.isMobileCartOpen ? 'translate-y-0' : 'translate-y-full'}">
-                        <div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto my-3"></div>
-                        ${renderCartContent(cartTotal, cartCount)}
-                    </div>
+                <div className="space-y-3"><h2 className="text-lg font-bold text-gray-800 flex items-center"><AlertTriangle size={18} className="mr-2 text-orange-500" />Status & Alerts</h2><div className="grid grid-cols-1 md:grid-cols-2 gap-3">{alerts.length > 0 ? alerts.map((alert, idx) => (<div key={idx} className="p-4 rounded-lg border-l-4 shadow-sm flex items-start space-x-3 bg-red-50 border-red-500"><AlertTriangle size={20} className="text-red-500 shrink-0" /><div><p className="text-sm font-bold text-red-700">{alert.msg}</p><p className="text-xs text-red-600 mb-1">{alert.sub}</p><button onClick={() => onNavigateToMaintenance(alert.motor.id)} className="text-xs bg-white border border-red-200 text-red-700 px-2 py-1 rounded hover:bg-red-50 active:scale-95 transition-transform">View Details</button></div></div>)) : <div className="col-span-1 md:col-span-2 bg-emerald-50 border border-emerald-100 p-4 rounded-lg flex items-center space-x-3 text-emerald-700"><CheckCircle2 size={24} /><span className="font-medium text-sm">All systems go! No urgent maintenance.</span></div>}</div></div>
+                <div className="space-y-3"><div className="flex justify-between items-center"><h2 className="text-lg font-bold text-gray-800">Recent Activity</h2><button onClick={() => onNavigateToMaintenance('all')} className="text-blue-600 text-sm font-medium hover:text-blue-800">View All</button></div>{recentLogs.length > 0 ? (<div className="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100">{recentLogs.map(log => { const bike = motors.find(m => m.id === log.motorId); return (<div key={log.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"><div className="flex items-center space-x-3"><div className="bg-blue-50 p-2 rounded-lg text-blue-600"><Wrench size={18} /></div><div><p className="font-semibold text-gray-800 text-sm">{log.type}</p><p className="text-xs text-gray-500">{bike ? bike.name : 'Unknown Bike'} • {log.date}</p></div></div><span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-600">{log.odometer.toLocaleString()} km</span></div>); })}</div>) : <p className="text-center text-gray-400 py-8 text-sm">No maintenance records yet.</p>}</div>
                 </div>
+            );
+        };
 
-                <!-- Mobile Floating Cart Button -->
-                <button onclick="toggleMobileCart()" class="md:hidden fixed bottom-6 right-6 z-40 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full shadow-2xl shadow-slate-900/50 flex items-center px-6 py-4 gap-3 transition-transform active:scale-90 ${state.isMobileCartOpen ? 'hidden' : 'flex'}">
-                    <div class="relative">
-                        <i data-lucide="shopping-cart" width="24"></i>
-                        ${cartCount > 0 ? `<span class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-slate-900 dark:border-white">${cartCount}</span>` : ''}
-                    </div>
-                    <span class="font-bold">${formatPHP(cartTotal)}</span>
-                </button>
-            </div>
-        `;
-    }
+        const MotorsView = ({ motors, onAddMotor, onUpdateMotor, onDeleteMotor, onNavigateToMaintenance }) => {
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [editingId, setEditingId] = useState(null);
+            const [deletingId, setDeletingId] = useState(null);
+            const [modalMode, setModalMode] = useState('full'); 
+            const [error, setError] = useState(''); 
+            const [formData, setFormData] = useState({ name: '', model: '', plate: '', odometer: '', type: 'scooter', image: null, mvFile: '', engineNumber: '', chassisNumber: '' });
+            const fileInputRef = useRef(null);
 
-    function renderCartContent(total, count) {
-        return `
-            <div class="p-4 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                <h3 class="font-bold text-lg text-slate-800 dark:text-slate-100">Current Order</h3>
-                <span class="text-xs font-bold bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded text-slate-600 dark:text-slate-300">${count} Items</span>
-            </div>
-            <div class="flex-1 overflow-y-auto p-4 space-y-3">
-                ${state.cart.length === 0 ? `
-                    <div class="h-40 flex flex-col items-center justify-center text-slate-400 opacity-50">
-                        <i data-lucide="shopping-bag" width="40" class="mb-2"></i>
-                        <p class="text-sm">Empty Cart</p>
-                    </div>
-                ` : state.cart.map(item => `
-                    <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-700/30 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <div class="flex-1">
-                            <h4 class="font-bold text-sm text-slate-800 dark:text-slate-200 truncate">${item.name}</h4>
-                            <div class="text-xs text-slate-500 mt-0.5">${formatPHP(item.price)} x ${item.qty}</div>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="font-bold text-slate-700 dark:text-slate-300">${formatPHP(item.price * item.qty)}</span>
-                            <button onclick="removeFromCart(${item.id})" class="w-8 h-8 flex items-center justify-center bg-red-100 dark:bg-red-900/30 text-red-500 rounded-full hover:bg-red-200"><i data-lucide="trash-2" width="14"></i></button>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-            <div class="p-6 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700">
-                <div class="flex justify-between items-end mb-4">
-                    <span class="text-slate-500 text-sm">Total Amount</span>
-                    <span class="text-3xl font-bold text-slate-900 dark:text-white">${formatPHP(total)}</span>
-                </div>
-                <button onclick="checkout()" ${state.cart.length === 0 ? 'disabled' : ''} class="w-full py-4 rounded-xl font-bold text-lg transition-all ${state.cart.length === 0 ? 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed text-slate-500' : getThemeClasses('btn-primary')}">
-                    Charge ${formatPHP(total)}
-                </button>
-            </div>
-        `;
-    }
+            const openAddModal = () => { setModalMode('full'); setError(''); setFormData({ name: '', model: '', plate: '', odometer: '', type: 'scooter', image: null, mvFile: '', engineNumber: '', chassisNumber: '' }); setEditingId(null); setIsModalOpen(true); };
+            const openEditModal = (motor) => { setModalMode('full'); setError(''); setFormData({ ...motor, type: motor.type || 'scooter', image: motor.image || null, mvFile: motor.mvFile || '', engineNumber: motor.engineNumber || '', chassisNumber: motor.chassisNumber || '' }); setEditingId(motor.id); setIsModalOpen(true); };
+            const openOdometerModal = (motor) => { setModalMode('odometer'); setError(''); setFormData({ ...motor }); setEditingId(motor.id); setIsModalOpen(true); };
 
-    function renderCommonTable(headers, rows) {
-        return `
-            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                        <thead class="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 font-medium text-xs uppercase tracking-wider">
-                            <tr>${headers.map(h => `<th class="px-6 py-4">${h}</th>`).join('')}</tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-                            ${rows}
-                        </tbody>
-                    </table>
-                </div>
-            </div>`;
-    }
-
-    // --- MAIN RENDER ---
-    function renderApp() {
-        const app = document.getElementById('app');
-        
-        let content = '';
-        if (state.activeTab === 'dashboard') {
-            const todayStr = getPHDateString();
-            const relSales = state.sales.filter(s => {
-                const d = getPHDateString(s.date);
-                if (state.dashboardViewMode === 'today') return d === todayStr;
-                if (state.dashboardViewMode === 'custom' && state.dashboardDateRange.start) {
-                    return d >= state.dashboardDateRange.start && (!state.dashboardDateRange.end || d <= state.dashboardDateRange.end);
+            const handleImageChange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                    const canvas = document.createElement('canvas'); const MAX_WIDTH = 300; const scaleSize = MAX_WIDTH / img.width;
+                    canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize;
+                    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7); setFormData(prev => ({ ...prev, image: dataUrl }));
+                    }; img.src = event.target.result;
+                }; reader.readAsDataURL(file);
                 }
-                return true;
-            });
-            const rev = relSales.reduce((a,s)=>a+s.total,0);
-            const grossProfit = relSales.reduce((a,s)=>a+s.profit,0);
-            const tithes = rev * 0.10;
-            const netProfit = grossProfit - tithes;
-            
-            // New: Filter Low Stock Materials
-            const lowStockMaterials = state.materials.filter(m => m.stock < 10);
-            
-            // New: Recent Activity (Last 5 sales)
-            const recentActivity = [...state.sales]
-                .sort((a,b) => new Date(b.date) - new Date(a.date))
-                .slice(0, 5);
-            
-            content = `
-                <div class="space-y-6 pb-20 fade-in">
-                    <div class="flex flex-col sm:flex-row justify-between gap-4">
-                        <h2 class="text-2xl font-bold dark:text-white">Dashboard</h2>
-                        <div class="flex bg-white dark:bg-slate-800 p-1 rounded-lg border dark:border-slate-700 shadow-sm self-start">
-                            ${['all','today','custom'].map(m => `<button onclick="setDashboardView('${m}')" class="px-4 py-1.5 rounded-md text-sm font-medium ${state.dashboardViewMode===m ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white' : 'text-slate-500'}">${m.toUpperCase()}</button>`).join('')}
-                        </div>
-                    </div>
-                    ${state.dashboardViewMode === 'custom' ? `
-                        <div class="flex flex-wrap items-end gap-3 bg-white dark:bg-slate-800 p-4 rounded-xl border dark:border-slate-700 shadow-sm">
-                            <div class="flex flex-col gap-1">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Start Date</span>
-                                <input type="date" onchange="setDashboardDate('start',this.value)" value="${state.dashboardDateRange.start}" class="bg-slate-50 dark:bg-slate-700 dark:text-white outline-none border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-${state.themeColor}-500">
-                            </div>
-                            <span class="self-center text-slate-400 pb-2 hidden sm:block">-</span>
-                            <div class="flex flex-col gap-1">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">End Date</span>
-                                <input type="date" onchange="setDashboardDate('end',this.value)" value="${state.dashboardDateRange.end}" class="bg-slate-50 dark:bg-slate-700 dark:text-white outline-none border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-${state.themeColor}-500">
-                            </div>
-                        </div>` : ''
-                    }
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg shadow-blue-500/20">
-                            <p class="text-blue-100 text-sm font-medium mb-1">Total Revenue</p>
-                            <p class="text-3xl font-bold">${formatPHP(rev)}</p>
-                        </div>
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border dark:border-slate-700 shadow-sm">
-                            <p class="text-slate-500 text-sm font-medium mb-1">Church Tithes (10%)</p>
-                            <p class="text-3xl font-bold text-purple-500">${formatPHP(tithes)}</p>
-                        </div>
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border dark:border-slate-700 shadow-sm">
-                            <p class="text-slate-500 text-sm font-medium mb-1">Net Profit</p>
-                            <p class="text-3xl font-bold text-green-500">${formatPHP(netProfit)}</p>
-                        </div>
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border dark:border-slate-700 shadow-sm">
-                            <p class="text-slate-500 text-sm font-medium mb-1">Transactions</p>
-                            <p class="text-3xl font-bold dark:text-white">${relSales.length}</p>
-                        </div>
-                    </div>
+            };
 
-                    <!-- New Sections -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                         <!-- Low Stock Alerts -->
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 shadow-sm overflow-hidden flex flex-col">
-                            <div class="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                                <h3 class="font-bold dark:text-white">Low Stock Alerts</h3>
-                                <span class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-md font-bold">${lowStockMaterials.length} Items</span>
-                            </div>
-                            <div class="p-4 overflow-y-auto max-h-64">
-                                ${lowStockMaterials.length === 0 
-                                    ? '<div class="text-center text-slate-400 py-4 text-sm">All materials in stock</div>' 
-                                    : lowStockMaterials.map(m => `
-                                        <div class="flex justify-between items-center py-2 border-b border-slate-50 dark:border-slate-700 last:border-0">
-                                            <span class="text-sm dark:text-slate-300 font-medium">${m.name}</span>
-                                            <span class="text-xs font-bold text-red-500">${m.stock} ${m.unit}</span>
-                                        </div>
-                                    `).join('')}
-                            </div>
-                        </div>
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (editingId) {
+                    const currentMotor = motors.find(m => m.id === editingId);
+                    if (currentMotor && Number(formData.odometer) < currentMotor.odometer) { setError(`Cannot rollback! Current: ${currentMotor.odometer.toLocaleString()} km`); return; }
+                    onUpdateMotor({ ...formData, id: editingId, odometer: Number(formData.odometer) });
+                } else {
+                    onAddMotor({ ...formData, odometer: Number(formData.odometer) });
+                }
+                setIsModalOpen(false);
+            };
 
-                        <!-- Recent Activity -->
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 shadow-sm overflow-hidden flex flex-col">
-                            <div class="p-4 border-b border-slate-100 dark:border-slate-700">
-                                <h3 class="font-bold dark:text-white">Recent Sales</h3>
-                            </div>
-                            <div class="p-4 overflow-y-auto max-h-64">
-                                ${recentActivity.length === 0 
-                                    ? '<div class="text-center text-slate-400 py-4 text-sm">No sales yet</div>' 
-                                    : recentActivity.map(s => `
-                                        <div class="flex justify-between items-center py-3 border-b border-slate-50 dark:border-slate-700 last:border-0">
-                                            <div>
-                                                <div class="text-sm font-bold dark:text-white">${s.productName}</div>
-                                                <div class="text-xs text-slate-400">${formatDate(s.date)}</div>
-                                            </div>
-                                            <div class="font-bold text-${state.themeColor}-600 dark:text-${state.themeColor}-400">${formatPHP(s.total)}</div>
-                                        </div>
-                                    `).join('')}
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-        } else if (state.activeTab === 'inventory') {
-            content = `
-                <div class="space-y-6 pb-20 fade-in">
-                    <div class="flex justify-between items-center">
-                        <h2 class="text-2xl font-bold dark:text-white">Products</h2>
-                        <button onclick="toggleAddProduct()" class="px-4 py-2 rounded-lg font-bold transition-all ${getThemeClasses('btn-primary')}">${state.isInvAdding ? 'Cancel' : '+ Add'}</button>
-                    </div>
-                    ${state.isInvAdding ? `
-                        <form onsubmit="saveProduct(event)" class="bg-white dark:bg-slate-800 p-6 rounded-xl border dark:border-slate-700 space-y-4 shadow-xl slide-up">
-                            <div class="grid grid-cols-2 gap-4">
-                                <input name="name" placeholder="Product Name" required value="${state.newItem.name}" oninput="state.newItem.name = this.value" class="col-span-2 p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                <input name="price" type="number" step="0.01" placeholder="Price" required value="${state.newItem.price}" oninput="state.newItem.price = this.value" class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                <input name="cost" type="number" step="0.01" placeholder="Cost" required value="${state.newItem.cost}" oninput="state.newItem.cost = this.value" class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                <select name="category" onchange="state.newItem.category = this.value" class="col-span-2 p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                    ${['Xerox','Photo','Print','Laminate','Other'].map(c=>`<option ${state.newItem.category===c?'selected':''}>${c}</option>`).join('')}
-                                </select>
-                                <input type="hidden" name="stock" value="0">
-                            </div>
-                            <div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl">
-                                <div class="flex gap-2 mb-2">
-                                    <select id="recipe-mat-select" class="flex-1 p-2 border rounded dark:bg-slate-700 dark:text-white text-sm">${state.materials.map(m=>`<option value="${m.id}">${m.name}</option>`).join('')}</select>
-                                    <input id="recipe-qty-input" type="number" step="0.1" placeholder="Qty" class="w-20 p-2 border rounded dark:bg-slate-700 dark:text-white text-sm">
-                                    <button type="button" onclick="addRecipeIngredient()" class="bg-slate-200 dark:bg-slate-600 px-3 rounded font-bold">+</button>
-                                </div>
-                                <div class="space-y-1">
-                                    ${state.newItem.recipe.map((r,i) => `<div class="flex justify-between items-center text-xs dark:text-slate-300"><span>${r.qty} x ${r.name}</span><button onclick="removeRecipeIngredient(${i})" class="text-red-500"><i data-lucide="trash-2" width="14"></i></button></div>`).join('')}
-                                </div>
-                            </div>
-                            <button class="w-full py-3 rounded-xl font-bold ${getThemeClasses('btn-primary')}">Save</button>
-                        </form>
-                    ` : ''}
-                    ${renderCommonTable(['Name', 'Price', 'Actions'], state.products.map(p => `
-                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                            <td class="px-6 py-4 dark:text-white font-medium">
-                                ${p.name}
-                                <div class="text-xs text-slate-400">${p.category}</div>
-                            </td>
-                            <td class="px-6 py-4 dark:text-white">${formatPHP(p.price)}</td>
-                            <td class="px-6 py-4 flex gap-2">
-                                <button onclick="editProduct(${p.id})" class="text-blue-500"><i data-lucide="edit" width="18"></i></button>
-                                <button onclick="deleteProduct(${p.id})" class="text-red-500"><i data-lucide="trash-2" width="18"></i></button>
-                            </td>
-                        </tr>`).join(''))}
-                </div>`;
-        } else if (state.activeTab === 'materials') {
-            content = `
-                <div class="space-y-6 pb-20 fade-in">
-                    <div class="flex justify-between items-center">
-                        <h2 class="text-2xl font-bold dark:text-white">Materials</h2>
-                        <button onclick="toggleAddMaterial()" class="px-4 py-2 rounded-lg font-bold transition-all ${getThemeClasses('btn-primary')}">${state.isMatAdding ? 'Cancel' : '+ Add'}</button>
-                    </div>
-                    ${state.isMatAdding ? `
-                        <form onsubmit="saveMaterial(event)" class="bg-white dark:bg-slate-800 p-6 rounded-xl border dark:border-slate-700 space-y-4 shadow-xl slide-up">
-                            <input name="name" placeholder="Material Name" required value="${state.tempMaterial.name}" class="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                            <div class="grid grid-cols-3 gap-4">
-                                <input name="unit" placeholder="Unit (e.g. Sheets)" required value="${state.tempMaterial.unit}" class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                <input name="stock" type="number" placeholder="Current Stock" required value="${state.tempMaterial.stock}" class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                                <input name="costPerUnit" type="number" step="0.01" placeholder="Cost/Unit" value="${state.tempMaterial.costPerUnit}" class="p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                            </div>
-                            <button class="w-full py-3 rounded-xl font-bold ${getThemeClasses('btn-primary')}">${state.editingMaterialId ? 'Update' : 'Save'} Material</button>
-                        </form>
-                    ` : ''}
-                    ${renderCommonTable(['Name', 'Stock', 'Action'], state.materials.map(m => `
-                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                            <td class="px-6 py-4 dark:text-white font-medium">
-                                ${m.name}
-                                <div class="text-xs text-slate-400">Cost: ${formatPHP(m.costPerUnit||0)} / ${m.unit}</div>
-                            </td>
-                            <td class="px-6 py-4"><span class="px-2 py-1 rounded-md text-xs font-bold ${m.stock < 10 ? 'bg-red-100 text-red-600' : 'bg-slate-100 dark:bg-slate-700 dark:text-slate-300'}">${m.stock} ${m.unit}</span></td>
-                            <td class="px-6 py-4 flex gap-2">
-                                <button onclick="editMaterial(${m.id})" class="text-blue-500"><i data-lucide="edit" width="18"></i></button>
-                                <button onclick="deleteMaterial(${m.id})" class="text-red-500"><i data-lucide="trash-2" width="18"></i></button>
-                            </td>
-                        </tr>`).join(''))}
-                </div>`;
-        } else if (state.activeTab === 'history') {
-             content = `
-                <div class="space-y-6 pb-20 fade-in">
-                    <h2 class="text-2xl font-bold dark:text-white">History</h2>
-                    ${renderCommonTable(['Date', 'Product', 'Total', 'Action'], state.sales.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0, 50).map(s => `
-                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                            <td class="px-6 py-4 text-xs dark:text-slate-400">${formatDate(s.date)}</td>
-                            <td class="px-6 py-4 dark:text-white">
-                                <div class="font-medium">${s.productName}</div>
-                                <div class="text-xs text-slate-400">Qty: ${s.quantity}</div>
-                            </td>
-                            <td class="px-6 py-4 font-bold dark:text-white">${formatPHP(s.total)}</td>
-                            <td class="px-6 py-4"><button onclick="deleteSale('${s.id}')" class="text-red-500"><i data-lucide="trash-2" width="18"></i></button></td>
-                        </tr>`).join(''))}
-                </div>`;
-        } else if (state.activeTab === 'settings') {
-            content = `
-                <div class="space-y-6 pb-20 fade-in">
-                    <h2 class="text-2xl font-bold dark:text-white">Settings</h2>
-                    
-                    <div class="bg-white dark:bg-slate-800 p-6 rounded-xl border dark:border-slate-700 shadow-sm">
-                        <h3 class="font-bold mb-4 dark:text-white">App Branding</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 uppercase">App Name</label>
-                                <input type="text" value="${state.appName}" onchange="state.appName = this.value; saveState()" class="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white mt-1">
-                            </div>
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 uppercase">Subtitle</label>
-                                <input type="text" value="${state.appSubtitle}" onchange="state.appSubtitle = this.value; saveState()" class="w-full p-3 border rounded-xl dark:bg-slate-700 dark:border-slate-600 dark:text-white mt-1">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white dark:bg-slate-800 p-6 rounded-xl border dark:border-slate-700 shadow-sm">
-                        <h3 class="font-bold mb-4 dark:text-white">Theme</h3>
-                        <div class="flex gap-4 items-center mb-6">
-                            <button onclick="toggleDarkMode()" class="p-3 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-yellow-400">
-                                <i data-lucide="${state.darkMode ? 'sun' : 'moon'}" width="20"></i>
-                            </button>
-                            <span class="text-sm dark:text-slate-400">Toggle Dark Mode</span>
-                        </div>
-                        <div class="flex gap-3">
-                            ${['cyan','blue','violet','pink','orange'].map(c => `<button onclick="setThemeColor('${c}')" class="w-10 h-10 rounded-full bg-${c}-500 ring-2 ${state.themeColor===c?'ring-offset-2 ring-slate-400':'ring-transparent'}"></button>`).join('')}
-                        </div>
-                    </div>
-
-                    <div class="bg-white dark:bg-slate-800 p-6 rounded-xl border dark:border-slate-700 shadow-sm space-y-4">
-                        <h3 class="font-bold dark:text-white">Data Management</h3>
-                        <button onclick="backupData()" class="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 dark:bg-slate-700 rounded-xl font-bold dark:text-white"><i data-lucide="download" width="18"></i> Backup Data</button>
-                        <div class="relative">
-                            <input type="file" id="restore-input" class="hidden" onchange="handleRestoreFile(event)">
-                            <button onclick="triggerRestore()" class="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 dark:bg-slate-700 rounded-xl font-bold dark:text-white"><i data-lucide="upload" width="18"></i> Restore Data</button>
-                        </div>
-                        <button onclick="resetApp()" class="w-full flex items-center justify-center gap-2 py-3 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-xl font-bold"><i data-lucide="trash-2" width="18"></i> Factory Reset</button>
-                    </div>
-                </div>`;
-        } else {
-            content = renderPOS();
-        }
-
-        app.innerHTML = `
-            ${renderSidebar()}
-            <main class="flex-1 h-screen overflow-y-auto bg-slate-50 dark:bg-slate-950 w-full relative">
-                <header class="md:hidden sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-4 flex justify-between items-center">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg shadow-sm bg-white overflow-hidden flex items-center justify-center">
-                             <img src="icon-512.png" class="w-full h-full object-cover" alt="Logo">
-                        </div>
-                        <span class="font-bold text-lg dark:text-white">${state.appName}</span>
-                    </div>
-                    <button onclick="toggleMobileMenu()"><i data-lucide="menu" class="dark:text-white"></i></button>
-                </header>
-                <div class="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto min-h-full">
-                    ${content}
+            return (
+                <div className="space-y-6 pb-24 animate-in slide-in-from-right-4 duration-300">
+                <header className="flex justify-between items-center sticky top-0 bg-gray-50 pt-2 pb-4 z-10"><h1 className="text-2xl font-bold text-gray-900">My Motors</h1><button onClick={openAddModal} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center shadow-lg shadow-blue-200 transition-all active:scale-95"><Plus size={16} className="mr-1" />Add Bike</button></header>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {motors.length > 0 ? motors.map((motor) => (
+                        <div key={motor.id} onClick={() => onNavigateToMaintenance(motor.id)} className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 relative overflow-hidden group hover:shadow-md transition-shadow cursor-pointer">
+                        <div className="absolute top-0 right-0 p-4 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity z-10"><button onClick={(e) => { e.stopPropagation(); openEditModal(motor); }} className="text-gray-400 hover:text-blue-600 p-1 active:scale-90"><MoreVertical size={18} /></button></div>
+                        <div className="flex items-start space-x-4"><div className="h-16 w-16 rounded-xl flex items-center justify-center shadow-md shrink-0 bg-gray-100 overflow-hidden relative">{motor.image ? <img src={motor.image} alt={motor.name} className="h-full w-full object-cover" /> : <div style={{ color: (MOTOR_TYPES.find(t => t.id === motor.type)||MOTOR_TYPES[0]).color }}><MotorTypeIcon typeId={motor.type || 'scooter'} className="w-10 h-10" /></div>}</div><div className="flex-1 min-w-0"><h3 className="font-bold text-lg text-gray-800 truncate">{motor.name}</h3><p className="text-gray-500 text-sm mb-2 truncate">{motor.model} • {motor.plate}</p><div className="flex items-center space-x-2 bg-gray-50 w-fit px-3 py-1 rounded-md border border-gray-100"><Gauge size={14} className="text-gray-400" /><span className="font-mono font-bold text-gray-700">{motor.odometer.toLocaleString()} km</span></div>{(motor.mvFile||motor.engineNumber||motor.chassisNumber) && <div className="mt-3 pt-2 border-t border-gray-100 space-y-1">{motor.mvFile&&<div className="flex items-center text-[10px]"><span className="w-12 font-bold text-gray-400 uppercase">MV File</span><span className="font-mono text-gray-600 truncate flex-1">{motor.mvFile}</span></div>}{motor.engineNumber&&<div className="flex items-center text-[10px]"><span className="w-12 font-bold text-gray-400 uppercase">Engine</span><span className="font-mono text-gray-600 truncate flex-1">{motor.engineNumber}</span></div>}{motor.chassisNumber&&<div className="flex items-center text-[10px]"><span className="w-12 font-bold text-gray-400 uppercase">Chassis</span><span className="font-mono text-gray-600 truncate flex-1">{motor.chassisNumber}</span></div>}</div>}</div></div>
+                        <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center relative z-10"><button onClick={(e) => { e.stopPropagation(); openOdometerModal(motor); }} className="text-sm font-medium text-gray-600 hover:text-blue-600 active:scale-95">Update Odometer</button><button onClick={(e) => { e.stopPropagation(); setDeletingId(motor.id); }} className="text-sm font-medium text-red-400 hover:text-red-600 active:scale-95">Remove</button></div></div>
+                    )) : <div className="col-span-1 md:col-span-full text-center py-12 bg-white rounded-xl border border-dashed border-gray-300"><div className="mx-auto h-12 w-12 text-gray-300 mb-3"><Bike size={48} /></div><p className="text-gray-500 font-medium">No motorcycles added yet.</p><p className="text-sm text-gray-400">Add your first bike to get started.</p></div>}
                 </div>
-            </main>
-        `;
-        lucide.createIcons();
-    }
+                {isModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50"><h3 className="font-bold text-gray-800">{modalMode === 'odometer' ? 'Update Odometer' : (editingId ? 'Edit Motor' : 'Add New Motor')}</h3><button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 active:scale-90"><X size={20}/></button></div>
+                        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
+                        {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-100 flex items-center"><AlertTriangle size={16} className="mr-2 shrink-0"/>{error}</div>}
+                        {modalMode === 'odometer' ? (<div className="space-y-4"><div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">New Odometer Reading (km)</label><input required type="number" autoFocus className="w-full p-4 text-lg font-mono font-bold rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0" value={formData.odometer} onChange={e => { setFormData({...formData, odometer: e.target.value}); if (error) setError(''); }} /><p className="text-xs text-gray-400 mt-2 text-right">Current: {motors.find(m => m.id === editingId)?.odometer.toLocaleString()} km</p></div><button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-transform active:scale-95">Update Odometer</button></div>) : (<> <div className="flex flex-col items-center justify-center"><div onClick={() => fileInputRef.current?.click()} className="w-24 h-24 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-gray-200 transition-colors relative group">{formData.image ? <><img src={formData.image} alt="Preview" className="w-full h-full object-cover" /><div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Camera size={20} className="text-white" /></div></> : <div className="text-center p-2"><Camera size={24} className="mx-auto text-gray-400 mb-1" /><span className="text-[10px] text-gray-500 font-medium leading-tight">Upload Photo</span></div>}</div><input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />{formData.image && <button type="button" onClick={() => setFormData(prev => ({ ...prev, image: null }))} className="text-xs text-red-500 mt-2 font-medium hover:underline">Remove Photo</button>}</div><div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nickname</label><input required className="w-full p-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Daily Beater" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}/></div><div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Make & Model</label><input required className="w-full p-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Honda Click 125i" value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})}/></div><div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Plate No.</label><input className="w-full p-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="ABC 123" value={formData.plate} onChange={e => setFormData({...formData, plate: e.target.value})}/></div><div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Odometer (km)</label><input required type="number" className="w-full p-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0" value={formData.odometer} onChange={e => setFormData({...formData, odometer: e.target.value})}/></div></div><div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">MV File No.</label><input className="w-full p-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="1234-567890" value={formData.mvFile} onChange={e => setFormData({...formData, mvFile: e.target.value})}/></div><div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Engine Number</label><input className="w-full p-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="E123..." value={formData.engineNumber} onChange={e => setFormData({...formData, engineNumber: e.target.value})}/></div><div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Chassis Number</label><input className="w-full p-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="C456..." value={formData.chassisNumber} onChange={e => setFormData({...formData, chassisNumber: e.target.value})}/></div></div><button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-transform active:scale-95">{editingId ? 'Update Motor' : 'Save Motor'}</button></>)}
+                        </form>
+                    </div>
+                    </div>
+                )}
+                {deletingId && <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in"><div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl"><h3 className="font-bold text-lg text-gray-900 mb-2">Delete Motorcycle?</h3><p className="text-gray-500 text-sm mb-6">Are you sure? All associated logs will be removed.</p><div className="flex space-x-3"><button onClick={() => setDeletingId(null)} className="flex-1 py-3 font-bold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors active:scale-95">Cancel</button><button onClick={() => { onDeleteMotor(deletingId); setDeletingId(null); }} className="flex-1 py-3 font-bold text-white bg-red-500 rounded-xl hover:bg-red-600 shadow-lg shadow-red-200 transition-colors active:scale-95">Yes, Delete</button></div></div></div>}
+                </div>
+            );
+        };
 
-    // Init
-    if(state.darkMode) document.documentElement.classList.add('dark');
-    
-    // Auto-update name for existing users if it's still the old default
-    if(state.appName === 'Z&Z Manager') state.appName = 'Printing Business';
-    
-    renderApp();
+        const MaintenanceView = ({ motors, logs, schedule, onAddLog, onUpdateLog, onDeleteLog, onOpenSettings, filterId, setFilterId }) => {
+            const [isModalOpen, setIsModalOpen] = useState(false); const [deletingLogId, setDeletingLogId] = useState(null); const [editingLogId, setEditingLogId] = useState(null);
+            const [formData, setFormData] = useState({ motorId: motors.length > 0 ? motors[0].id : '', type: 'Engine Oil', date: new Date().toISOString().split('T')[0], odometer: '', notes: '', cost: '' });
+            const filteredLogs = filterId === 'all' ? logs : logs.filter(log => log.motorId === Number(filterId));
+            const sortedLogs = [...filteredLogs].sort((a, b) => new Date(b.date) - new Date(a.date));
+            const activeMotor = filterId !== 'all' ? motors.find(m => m.id === Number(filterId)) : null;
+            const groupedLogs = useMemo(() => { const groups = {}; sortedLogs.forEach(log => { const key = `${log.motorId}-${log.odometer}`; if (!groups[key]) groups[key] = { id: key, motorId: log.motorId, odometer: log.odometer, date: log.date, items: [], totalCost: 0 }; groups[key].items.push(log); groups[key].totalCost += (log.cost || 0); }); return Object.values(groups).sort((a, b) => b.odometer - a.odometer); }, [sortedLogs]);
+            const handleSubmit = (e) => { e.preventDefault(); const logData = { ...formData, motorId: Number(formData.motorId), odometer: Number(formData.odometer), cost: Number(formData.cost) }; if (editingLogId) onUpdateLog({ ...logData, id: editingLogId }); else onAddLog(logData); setIsModalOpen(false); setEditingLogId(null); setFormData({ ...formData, notes: '', cost: '', type: 'Engine Oil' }); };
+            const openAddModal = () => { setEditingLogId(null); setFormData({ motorId: motors.length > 0 ? motors[0].id : '', type: 'Engine Oil', date: new Date().toISOString().split('T')[0], odometer: '', notes: '', cost: '' }); setIsModalOpen(true); };
+            const openEditLogModal = (log) => { setEditingLogId(log.id); setFormData({ motorId: log.motorId, type: log.type, date: log.date, odometer: log.odometer, notes: log.notes || '', cost: log.cost || '' }); setIsModalOpen(true); };
+            const openLogForSuggestion = (serviceType) => { if (!activeMotor) return; setEditingLogId(null); setFormData({ motorId: activeMotor.id, type: serviceType, date: new Date().toISOString().split('T')[0], odometer: activeMotor.odometer, notes: '', cost: '' }); setIsModalOpen(true); };
+            const serviceTypes = schedule.map(s => s.type).concat(["General Repair", "Wash", "Other"]);
+            const getServiceStatus = (item) => { if (!activeMotor) return null; const lastService = logs.filter(l => l.motorId === activeMotor.id && l.type === item.type).sort((a, b) => { const dateA = new Date(a.date); const dateB = new Date(b.date); if (dateB - dateA !== 0) return dateB - dateA; if (b.odometer - a.odometer !== 0) return b.odometer - a.odometer; return b.id - a.id; })[0]; const lastOdometer = lastService ? lastService.odometer : 0; const distanceRun = activeMotor.odometer - lastOdometer; const remaining = item.interval - distanceRun; let status = 'good'; if (remaining <= 0) status = 'due'; else if (remaining <= 500) status = 'near'; return { lastOdometer, distanceRun, status, remaining }; };
 
-</script>
+            return (
+                <div className="space-y-4 pb-24 animate-in slide-in-from-right-4 duration-300">
+                <header className="sticky top-0 bg-gray-50 pt-2 pb-2 z-10"><div className="flex justify-between items-center mb-4"><div className="flex items-center gap-2"><h1 className="text-2xl font-bold text-gray-900">Maintenance</h1><button onClick={onOpenSettings} className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-gray-100 transition-colors active:scale-90"><Settings size={20}/></button></div><button disabled={motors.length === 0} onClick={openAddModal} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center shadow-lg shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-transform"><Plus size={16} className="mr-1" />Log Service</button></div><div className="flex space-x-2 overflow-x-auto pb-2 no-scrollbar"><button onClick={() => setFilterId('all')} className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium border transition-colors active:scale-95 ${filterId === 'all' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}>All Bikes</button>{motors.map(m => (<button key={m.id} onClick={() => setFilterId(m.id)} className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium border transition-colors active:scale-95 ${filterId === m.id ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}>{m.name}</button>))}</div></header>
+                {activeMotor && (<div className="mb-6"><div className="flex items-center justify-between mb-3"><h3 className="text-sm font-bold text-gray-900 flex items-center"><ClipboardCheck size={18} className="mr-2 text-indigo-600" />Maintenance Status</h3><button onClick={onOpenSettings} className="text-xs flex items-center text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition-colors font-medium active:scale-95"><Settings size={12} className="mr-1"/> Configure</button></div><div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">{schedule.map((item, idx) => { const { status, remaining } = getServiceStatus(item); const IconComp = ICON_MAP[item.icon] || Wrench; let styles = { icon: 'bg-emerald-50 text-emerald-500', badge: 'bg-emerald-100 text-emerald-600', text: 'text-gray-400', label: 'Good' }; if (status === 'due') { styles = { icon: 'bg-red-50 text-red-500', badge: 'bg-red-100 text-red-600', text: 'text-red-500', label: 'Due' }; } else if (status === 'near') { styles = { icon: 'bg-yellow-50 text-yellow-600', badge: 'bg-yellow-100 text-yellow-700', text: 'text-yellow-600', label: 'Soon' }; } return (<div key={idx} onClick={() => openLogForSuggestion(item.type)} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group hover:border-blue-300 transition-all cursor-pointer active:scale-[0.98]"><div className="flex justify-between items-start"><div className={`p-2 rounded-xl ${styles.icon}`}><IconComp size={20} /></div><span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${styles.badge}`}>{styles.label}</span></div><div><h4 className="font-bold text-gray-800 text-sm leading-tight mb-0.5 truncate">{item.type}</h4><p className={`text-xs font-medium ${styles.text}`}>{status === 'due' ? `Due: ${Math.round(remaining * -1).toLocaleString()} km ago` : `Due in: ${Math.round(remaining).toLocaleString()} km`}</p></div></div>); })}</div></div>)}
+                <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center"><History size={18} className="mr-2 text-gray-500" />Service History</h3>
+                <div className="space-y-4">{groupedLogs.length > 0 ? groupedLogs.map((group) => { const bike = motors.find(m => m.id === group.motorId); return (<div key={group.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"><div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center"><div><h4 className="font-bold text-gray-800 text-sm flex items-center"><Gauge size={16} className="mr-2 text-gray-500" />{group.odometer.toLocaleString()} km</h4><p className="text-xs text-gray-500">{bike ? bike.name : 'Unknown'} • {group.date}</p></div>{group.totalCost > 0 && <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">₱{group.totalCost.toLocaleString()}</span>}</div><div className="divide-y divide-gray-50">{group.items.map((log) => (<div key={log.id} className="p-4 flex justify-between items-start hover:bg-gray-50 transition-colors"><div className="flex items-start space-x-3"><div className={`p-1.5 rounded-lg mt-0.5 ${['Engine Oil', 'Gear Oil'].includes(log.type) ? 'bg-amber-100 text-amber-600' : 'bg-blue-50 text-blue-600'}`}><Wrench size={14} /></div><div><p className="font-bold text-gray-800 text-sm">{log.type}</p>{log.notes && <p className="text-xs text-gray-500 mt-0.5">{log.notes}</p>}</div></div><div className="flex flex-col items-end space-y-2">{log.cost > 0 && <span className="text-xs font-mono text-gray-600">₱{log.cost}</span>}<div className="flex items-center space-x-1"><button onClick={() => openEditLogModal(log)} className="p-1.5 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors active:scale-90"><Pencil size={14} /></button><button onClick={() => setDeletingLogId(log.id)} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors active:scale-90"><Trash2 size={14} /></button></div></div></div>))}</div></div>); }) : <div className="text-center py-12"><div className="mx-auto h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mb-3"><History size={24} /></div><p className="text-gray-500">No service records found.</p></div>}</div>
+                {isModalOpen && (<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in"><div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"><div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50"><h3 className="font-bold text-gray-800">{editingLogId ? 'Edit Record' : 'Log Maintenance'}</h3><button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 active:scale-90"><X size={20}/></button></div><form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto"><div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Select Bike</label><select className="w-full p-3 rounded-lg border border-gray-200 bg-white" value={formData.motorId} onChange={e => setFormData({...formData, motorId: e.target.value})}>{motors.map(m => <option key={m.id} value={m.id}>{m.name} ({m.model})</option>)}</select></div><div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Date</label><input type="date" className="w-full p-3 rounded-lg border border-gray-200" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})}/></div><div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Odometer</label><input type="number" required className="w-full p-3 rounded-lg border border-gray-200" placeholder="km" value={formData.odometer} onChange={e => setFormData({...formData, odometer: e.target.value})}/></div></div><div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Service Type</label><select className="w-full p-3 rounded-lg border border-gray-200 bg-white" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>{serviceTypes.map(t => <option key={t} value={t}>{t}</option>)}</select></div><div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Cost (₱) (Optional)</label><input type="number" className="w-full p-3 rounded-lg border border-gray-200" placeholder="0.00" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})}/></div><div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Notes / Parts</label><textarea className="w-full p-3 rounded-lg border border-gray-200" rows="3" placeholder="E.g. Brand new Pirelli tires, Motul oil..." value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})}></textarea></div><button type="submit" className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-transform active:scale-95">{editingLogId ? 'Update Record' : 'Save Record'}</button></form></div></div>)}
+                {deletingLogId && <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in"><div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl"><h3 className="font-bold text-lg text-gray-900 mb-2">Delete Service Record?</h3><p className="text-gray-500 text-sm mb-6">Are you sure you want to delete this log?</p><div className="flex space-x-3"><button onClick={() => setDeletingLogId(null)} className="flex-1 py-3 font-bold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors active:scale-95">Cancel</button><button onClick={() => { onDeleteLog(deletingLogId); setDeletingLogId(null); }} className="flex-1 py-3 font-bold text-white bg-red-500 rounded-xl hover:bg-red-600 shadow-lg shadow-red-200 transition-colors active:scale-95">Yes, Delete</button></div></div></div>}
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+            const [maintenanceFilterId, setMaintenanceFilterId] = useState('all');
+            const [toast, setToast] = useState(null);
+            
+            // Cloud Sync State
+            const [user, setUser] = useState(null);
+            const [db, setDb] = useState(null);
+
+            const showToast = (msg, type = 'info') => { setToast({ msg, type, id: Date.now() }); };
+            
+            const [motors, setMotors] = useState(() => { const saved = localStorage.getItem('motor_pms_motors'); return saved ? JSON.parse(saved) : []; });
+            const [logs, setLogs] = useState(() => { const saved = localStorage.getItem('motor_pms_logs'); return saved ? JSON.parse(saved) : []; });
+            const [schedule, setSchedule] = useState(() => { const saved = localStorage.getItem('motor_pms_schedule'); return saved ? JSON.parse(saved) : DEFAULT_SCHEDULE; });
+
+            // --- FIREBASE INIT ---
+            useEffect(() => {
+                const configStr = localStorage.getItem('motor_pms_firebase_config');
+                if (configStr && window.firebase) {
+                    try {
+                        const config = JSON.parse(configStr);
+                        if (!firebase.apps.length) {
+                            firebase.initializeApp(config);
+                        }
+                        const auth = firebase.auth();
+                        const firestore = firebase.firestore();
+                        setDb(firestore);
+                        
+                        auth.onAuthStateChanged((u) => {
+                            if (u) {
+                                setUser(u);
+                                showToast("Cloud Sync Active", "success");
+                            } else {
+                                auth.signInAnonymously().catch(e => console.error("Auth Fail", e));
+                            }
+                        });
+                    } catch (e) {
+                        console.error("Firebase Init Error", e);
+                    }
+                }
+            }, []);
+
+            // --- CLOUD SYNC LISTENERS ---
+            useEffect(() => {
+                if (!db || !user) return;
+                
+                // Sync Motors
+                const unsubMotors = db.collection('users').doc(user.uid).collection('motors')
+                    .onSnapshot(snapshot => {
+                        if (!snapshot.empty) {
+                            const cloudMotors = snapshot.docs.map(doc => doc.data());
+                            // Simple strategy: Cloud wins if data exists
+                            if (cloudMotors.length > 0) {
+                                setMotors(cloudMotors);
+                                localStorage.setItem('motor_pms_motors', JSON.stringify(cloudMotors));
+                            }
+                        }
+                    });
+
+                // Sync Logs
+                const unsubLogs = db.collection('users').doc(user.uid).collection('logs')
+                    .onSnapshot(snapshot => {
+                        if (!snapshot.empty) {
+                            const cloudLogs = snapshot.docs.map(doc => doc.data());
+                            if (cloudLogs.length > 0) {
+                                setLogs(cloudLogs);
+                                localStorage.setItem('motor_pms_logs', JSON.stringify(cloudLogs));
+                            }
+                        }
+                    });
+
+                return () => { unsubMotors(); unsubLogs(); };
+            }, [db, user]);
+
+            // --- PERSISTENCE ---
+            useEffect(() => { localStorage.setItem('motor_pms_motors', JSON.stringify(motors)); }, [motors]);
+            useEffect(() => { localStorage.setItem('motor_pms_logs', JSON.stringify(logs)); }, [logs]);
+            useEffect(() => { localStorage.setItem('motor_pms_schedule', JSON.stringify(schedule)); }, [schedule]);
+
+            // --- ACTIONS (Modified for Cloud) ---
+            const addMotor = (motor) => { 
+                const newMotor = { ...motor, id: Date.now() }; 
+                setMotors(prev => [...prev, newMotor]);
+                if (db && user) db.collection('users').doc(user.uid).collection('motors').doc(String(newMotor.id)).set(newMotor);
+            };
+            const updateMotor = (updatedMotor) => { 
+                setMotors(prev => prev.map(m => m.id === updatedMotor.id ? updatedMotor : m)); 
+                if (db && user) db.collection('users').doc(user.uid).collection('motors').doc(String(updatedMotor.id)).set(updatedMotor);
+            };
+            const deleteMotor = (id) => { 
+                setMotors(prev => prev.filter(m => m.id !== id)); 
+                setLogs(prev => prev.filter(l => l.motorId !== id));
+                if (db && user) {
+                    db.collection('users').doc(user.uid).collection('motors').doc(String(id)).delete();
+                    // Note: Deleting logs from cloud would require batching or individual deletes, simplified here
+                }
+            };
+            const addLog = (log) => { 
+                const newLog = { ...log, id: Date.now() }; 
+                setLogs(prev => [...prev, newLog]); 
+                const motor = motors.find(m => m.id === log.motorId); 
+                if (motor && log.odometer > motor.odometer) updateMotor({ ...motor, odometer: log.odometer });
+                if (db && user) db.collection('users').doc(user.uid).collection('logs').doc(String(newLog.id)).set(newLog);
+            };
+            const updateLog = (updatedLog) => {
+                setLogs(prev => prev.map(l => l.id === updatedLog.id ? updatedLog : l));
+                const motor = motors.find(m => m.id === updatedLog.motorId);
+                if (motor && updatedLog.odometer > motor.odometer) updateMotor({ ...motor, odometer: updatedLog.odometer });
+                showToast("Record updated successfully!");
+                if (db && user) db.collection('users').doc(user.uid).collection('logs').doc(String(updatedLog.id)).set(updatedLog);
+            };
+            const deleteLog = (id) => { 
+                setLogs(prev => prev.filter(l => l.id !== id)); 
+                if (db && user) db.collection('users').doc(user.uid).collection('logs').doc(String(id)).delete();
+            };
+            
+            const handleUpdateSchedule = (newSchedule) => { setSchedule(newSchedule); };
+            const handleResetSchedule = () => { setSchedule(DEFAULT_SCHEDULE); };
+            const handleNavigateToMaintenance = (filterId) => { setMaintenanceFilterId(filterId); setActiveTab('maintenance'); };
+            const handleFullRestore = (data) => { if (data.motors) setMotors(data.motors); if (data.logs) setLogs(data.logs); if (data.schedule) setSchedule(data.schedule); showToast("Data restored successfully!"); };
+            const handleClearLogs = () => { setLogs([]); localStorage.setItem('motor_pms_logs', JSON.stringify([])); showToast("All logs cleared."); };
+            const handleFactoryReset = () => { setMotors([]); setLogs([]); setSchedule(DEFAULT_SCHEDULE); localStorage.removeItem('motor_pms_motors'); localStorage.removeItem('motor_pms_logs'); localStorage.removeItem('motor_pms_schedule'); showToast("App reset to factory defaults."); };
+
+            return (
+                <div className="bg-gray-50 min-h-screen font-sans text-gray-900 select-none">
+                {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+                <main className="w-full max-w-5xl mx-auto min-h-screen bg-white shadow-2xl overflow-hidden relative pt-safe">
+                    <div className="h-full overflow-y-auto p-4 custom-scrollbar">
+                    {activeTab === 'dashboard' && <DashboardView motors={motors} logs={logs} schedule={schedule} setActiveTab={setActiveTab} onOpenSettings={() => setIsSettingsOpen(true)} onNavigateToMaintenance={handleNavigateToMaintenance} />}
+                    {activeTab === 'motors' && <MotorsView motors={motors} onAddMotor={addMotor} onUpdateMotor={updateMotor} onDeleteMotor={deleteMotor} onNavigateToMaintenance={handleNavigateToMaintenance} />}
+                    {activeTab === 'maintenance' && <MaintenanceView motors={motors} logs={logs} schedule={schedule} onAddLog={addLog} onUpdateLog={updateLog} onDeleteLog={deleteLog} onOpenSettings={() => setIsSettingsOpen(true)} filterId={maintenanceFilterId} setFilterId={setMaintenanceFilterId} />}
+                    </div>
+                    {isSettingsOpen && <SettingsView schedule={schedule} onUpdateSchedule={handleUpdateSchedule} onReset={handleResetSchedule} onClose={() => setIsSettingsOpen(false)} onRestore={handleFullRestore} onFactoryReset={handleFactoryReset} onClearLogs={handleClearLogs} showToast={showToast} />}
+                    <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+                </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
 </body>
 </html>

@@ -1,70 +1,32 @@
-const CACHE_NAME = 'zz-printing-v6';
-
-// Add the external libraries you use to the cache list
-// so the app works even if offline
+const CACHE_NAME = 'motor-pms-v3';
 const ASSETS = [
   './',
   './index.html',
-  './manifest.json',
   './icon-512.png',
   'https://cdn.tailwindcss.com',
-  'https://unpkg.com/lucide@latest'
+  'https://unpkg.com/react@18/umd/react.production.min.js',
+  'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
+  'https://unpkg.com/@babel/standalone/babel.min.js',
+  'https://unpkg.com/lucide@latest',
+  'https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js',
+  'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js',
+  'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js'
 ];
 
-// Install Event: Caches the basic resources
-self.addEventListener('install', (event) => {
-  event.waitUntil(
+// Install Event
+self.addEventListener('install', (e) => {
+  e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS);
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
-// Activate Event: Cleans up old caches when a new version of sw.js is deployed
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
-  );
-});
-
-// Fetch Event: The caching strategy
-// 1. For HTML pages: Network First (try to get latest, fall back to cache)
-// 2. For assets/images/libs: Cache First (try cache, fall back to network)
-self.addEventListener('fetch', (event) => {
-  // Navigation requests (HTML) -> Network First
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
-
-  // Asset requests -> Cache First, then Network (and update cache)
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      return cachedResponse || fetch(event.request).then((response) => {
-        // Don't cache bad responses
-        if (!response || response.status !== 200 || response.type !== 'basic' && response.type !== 'cors') {
-          return response;
-        }
-
-        // Clone and cache the new resource
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-
-        return response;
-      });
+// Fetch Event (Offline Capability)
+self.addEventListener('fetch', (e) => {
+  e.respondWith(
+    caches.match(e.request).then((res) => {
+      return res || fetch(e.request);
     })
   );
 });
