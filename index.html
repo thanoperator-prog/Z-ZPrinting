@@ -81,7 +81,25 @@
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('SW registered:', reg))
+                .then(registration => {
+                    console.log('SW registered');
+                    
+                    // Listen for updates to notify user
+                    registration.onupdatefound = () => {
+                        const installingWorker = registration.installing;
+                        if (installingWorker == null) return;
+
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed') {
+                                if (navigator.serviceWorker.controller) {
+                                    showToast('New version available! Restart app.');
+                                } else {
+                                    showToast('App ready for offline use!');
+                                }
+                            }
+                        };
+                    };
+                })
                 .catch(err => console.log('SW failed:', err));
         });
     }
@@ -162,7 +180,7 @@
         toast.className = "bg-slate-800 dark:bg-white text-white dark:text-slate-900 px-6 py-3 rounded-xl shadow-xl flex items-center gap-3 slide-up pointer-events-auto border border-slate-700 dark:border-slate-200";
         toast.innerHTML = `<i data-lucide="check-circle-2" width="20"></i> <span class="font-bold text-sm">${msg}</span>`;
         container.appendChild(toast);
-        lucide.createIcons();
+        try { lucide.createIcons(); } catch(e) {}
         setTimeout(() => toast.remove(), 3000);
     }
 
@@ -402,7 +420,11 @@
         }, null, 2)], { type: 'application/json' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `zz-backup-${getPHDateString()}.json`;
+        
+        // Use App Name for filename (sanitized)
+        const safeName = state.appName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+        link.download = `${safeName}-backup-${getPHDateString()}.json`;
+        
         link.click();
     };
     window.triggerRestore = () => document.getElementById('restore-input').click();
@@ -600,11 +622,10 @@
                     ${renderCartContent(cartTotal, cartCount)}
                 </div>
 
-                <!-- Mobile Cart Modal -->
-                <!-- Added 'invisible' and 'z-[-1]' when closed to prevent ghost clicks -->
-                <div class="md:hidden fixed inset-0 flex flex-col justify-end pointer-events-none transition-all duration-300 ${state.isMobileCartOpen ? 'z-[60] visible' : 'z-[-1] invisible'}">
-                    <!-- Overlay -->
-                    <div onclick="toggleMobileCart()" class="absolute inset-0 bg-black/60 transition-opacity pointer-events-auto ${state.isMobileCartOpen ? 'opacity-100' : 'opacity-0'}"></div>
+                <!-- Mobile Cart Modal - FIXED: Removed invisible, used pointer-events toggling -->
+                <div class="md:hidden fixed inset-0 flex flex-col justify-end transition-all duration-300 ${state.isMobileCartOpen ? 'z-[60] pointer-events-auto' : 'z-[-1] pointer-events-none invisible'}">
+                    <!-- Overlay - FIXED: Added pointer-events-none when closed -->
+                    <div onclick="toggleMobileCart()" class="absolute inset-0 bg-black/60 transition-opacity ${state.isMobileCartOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}"></div>
                     
                     <!-- Bottom Sheet -->
                     <div class="bg-white dark:bg-slate-800 w-full rounded-t-2xl shadow-2xl transform transition-transform duration-300 pointer-events-auto flex flex-col max-h-[85vh] ${state.isMobileCartOpen ? 'translate-y-0' : 'translate-y-full'}">
@@ -929,7 +950,7 @@
                 <header class="md:hidden sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-4 flex justify-between items-center">
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 rounded-lg shadow-sm bg-white overflow-hidden flex items-center justify-center">
-                             <img src="icon-512.png" class="w-full h-full object-cover" alt="Logo">
+                             <img src="icon-512.png" class="w-full h-full object-cover" alt="Logo" onerror="this.src='https://via.placeholder.com/150?text=Z%26Z'">
                         </div>
                         <span class="font-bold text-lg dark:text-white">${state.appName}</span>
                     </div>
@@ -940,7 +961,7 @@
                 </div>
             </main>
         `;
-        lucide.createIcons();
+        try { lucide.createIcons(); } catch(e) {}
     }
 
     // Init
