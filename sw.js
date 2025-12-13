@@ -1,6 +1,7 @@
-const CACHE_NAME = 'zz-printing-v7';
+const CACHE_NAME = 'zz-printing-v6';
 
-// Assets to cache immediately
+// Add the external libraries you use to the cache list
+// so the app works even if offline
 const ASSETS = [
   './',
   './index.html',
@@ -12,17 +13,14 @@ const ASSETS = [
 
 // Install Event: Caches the basic resources
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // Force activation immediately
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // We use {cache: 'reload'} to ensure we get fresh copies from the server
-      // during the installation phase
-      return cache.addAll(ASSETS.map(url => new Request(url, { cache: 'reload' })));
-    })
+      return cache.addAll(ASSETS);
+    }).then(() => self.skipWaiting())
   );
 });
 
-// Activate Event: Clean up old caches
+// Activate Event: Cleans up old caches when a new version of sw.js is deployed
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -33,47 +31,33 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    }).then(() => self.clients.claim()) // Take control of all pages immediately
+    }).then(() => self.clients.claim())
   );
 });
 
-// Fetch Event: Network First, Fallback to Cache
+// Fetch Event: The caching strategy
+// 1. For HTML pages: Network First (try to get latest, fall back to cache)
+// 2. For assets/images/libs: Cache First (try cache, fall back to network)
 self.addEventListener('fetch', (event) => {
-  // Handle Navigation Requests (HTML)
+  // Navigation requests (HTML) -> Network First
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
-        .catch(() => {
-          // If network fails, try to return the cached index.html
-          // We search for './index.html' explicitly
-          return caches.match('./index.html')
-            .then(response => {
-              // If exact match found, return it
-              if (response) return response;
-              // If not, try matching the root './' as a fallback
-              return caches.match('./');
-            });
-        })
+        .catch(() => caches.match('./index.html'))
     );
     return;
   }
 
-  // Handle Assets (Images, Scripts, Styles)
+  // Asset requests -> Cache First, then Network (and update cache)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      // Return cached response if found
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-
-      // Otherwise fetch from network
-      return fetch(event.request).then((response) => {
-        // Check if we received a valid response
+      return cachedResponse || fetch(event.request).then((response) => {
+        // Don't cache bad responses
         if (!response || response.status !== 200 || response.type !== 'basic' && response.type !== 'cors') {
           return response;
         }
 
-        // Cache the new asset for next time
+        // Clone and cache the new resource
         const responseToCache = response.clone();
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, responseToCache);
